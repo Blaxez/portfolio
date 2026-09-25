@@ -21,7 +21,7 @@ A scroll-driven, editorial portfolio built around one idea — **One Beam**: the
 | Name, role, email, location, socials, CV | `src/lib/site.js` |
 | About: journey timeline, principles, portrait | `src/components/About.jsx` (`JOURNEY`, `PRINCIPLES`); portrait at `public/assets/portrait.webp` |
 | Skills | `src/components/Skills.jsx` (`SKILLS_DATA`); icons in `public/assets/skills/` |
-| Strengths | `src/components/WebGLFlowSection.jsx` (`ITEMS`); line diagrams in `src/components/strengths/Diagrams.jsx` |
+| Strengths | `src/components/WebGLFlowSection.jsx` (`ITEMS`); 3D structures in `src/lib/three/StrengthsScene.js` (`shapes()`) |
 | Numbers | `src/components/SystemMetrics.jsx` (`STATS`) |
 | Projects | Pulled live from GitHub (`src/services/githubService.js`, accounts in `GITHUB_USERS`): curated by stars, description and recency |
 
@@ -41,13 +41,13 @@ For the GitHub Pages deploy, add it as a repository variable and pass it as `env
 src/
   app/                 layout (fonts, metadata, pre-paint theme script), page, globals.css (design tokens, beam styles)
   components/          one file per section + Navbar, Preloader (the laser cut), Footer (the signature)
-    fx/                BeamRail (the page thread), MotionDirector (declarative scroll choreography), Cursor, ScrollHUD
-    strengths/         Diagrams — the five hand-set line drawings
+    fx/                BeamRail (the page thread), MotionDirector (declarative scroll choreography), Cursor, LightTrail, ScrollHUD
     providers/         ThemeProvider, SmoothScroll (Lenis ↔ GSAP ticker)
     ui/                SectionHeading, Rule (beam-drawn hairline), LocalTime
-  hooks/               useProjects, useReducedMotion
+  hooks/               useProjects
   lib/
     LaserFlow.js       hero laser · PortraitScan.js portrait scan shader (raw WebGL)
+    three/             StrengthsScene.js (3D particle structures) · ParticleWave.js (contact terrain) · stage.js
     SkillsParticleSystem.js skills morpher · DotGridBackground.js
     site.js · scroll.js · idle.js · assets.js
 ```

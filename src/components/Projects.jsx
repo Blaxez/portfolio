@@ -169,7 +169,9 @@ export default function Projects() {
     const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
     // A short hold once pinned lets the heading settle before the row starts to move.
     const hold = () => Math.round(window.innerHeight * 0.22);
-    const measure = () => setHeight(distance() + window.innerHeight + hold());
+    // The row travels faster than the page scrolls, so the gallery never feels like a treadmill.
+    const RATIO = 0.74;
+    const measure = () => setHeight(Math.round(distance() * RATIO) + window.innerHeight + hold());
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(track);
@@ -183,7 +185,7 @@ export default function Projects() {
           trigger: sectionRef.current,
           start: () => `top+=${hold()} top`,
           end: "bottom bottom",
-          scrub: 0.6,
+          scrub: 0.35,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             skewTo(gsap.utils.clamp(-5, 5, self.getVelocity() / -450));

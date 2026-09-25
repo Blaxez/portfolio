@@ -276,7 +276,7 @@ export default function WebGLFlowSection() {
       ref={sectionRef}
       aria-labelledby="strengths-title"
       className="stage-dark relative"
-      style={{ height: pinned ? `${ITEMS.length * 60 + 100}svh` : undefined }}
+      style={{ height: pinned ? `${ITEMS.length * 55 + 100}svh` : undefined }}
     >
       <div className={`${pinned ? "sticky top-0 h-[100svh]" : "relative min-h-[100svh] py-24"} overflow-hidden flex flex-col`}>
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" />

@@ -68,9 +68,9 @@ function EmailBlock() {
         <span className="beam-head" />
       </div>
       <div className="mt-4 flex items-center gap-4">
-        <button type="button" onClick={copyEmail} className="label link-u inline-flex min-h-11 items-center gap-2 hover:text-[var(--fg)]" aria-label="Copy email address">
+        <button type="button" onClick={copyEmail} className="label link-u inline-flex min-h-11 items-center gap-2 hover:text-[var(--fg)]">
           {copyState === "copied" ? <Check size={12} aria-hidden="true" /> : null}
-          <span aria-hidden="true">{copyState === "copied" ? "Copied" : copyState === "failed" ? "Select it instead" : "Copy address"}</span>
+          {copyState === "copied" ? "Copied" : copyState === "failed" ? "Select it instead" : "Copy address"}
         </button>
         <span className="sr-only" role="status" aria-live="polite">
           {copyState === "copied" ? "Email address copied" : copyState === "failed" ? "Couldn't copy — select the address instead" : ""}
