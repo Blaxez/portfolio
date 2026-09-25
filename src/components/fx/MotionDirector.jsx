@@ -19,6 +19,19 @@ gsap.registerPlugin(ScrollTrigger, SplitText);
  * Everything is skipped for reduced motion; content is visible without JS.
  */
 export default function MotionDirector() {
+  // Off-screen sections pause their CSS animations (marquees, pings, orbit
+  // tags, the scroll cue): browsers keep ticking infinite animations — and
+  // restyling for them — even when nothing on screen shows them.
+  useEffect(() => {
+    const targets = document.querySelectorAll("main > section, main > div > section, footer");
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.target.toggleAttribute("data-offscreen", !e.isIntersecting)),
+      { rootMargin: "100px 0px" },
+    );
+    targets.forEach((t) => io.observe(t));
+    return () => io.disconnect();
+  }, []);
+
   useEffect(() => {
     if (prefersReducedMotion()) return;
     let ctx;

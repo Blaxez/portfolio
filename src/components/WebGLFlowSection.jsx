@@ -1,4 +1,5 @@
 "use client";
+import { warmup } from "@/lib/warmup";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
@@ -67,7 +68,8 @@ function useSmokeShader(canvasRef, activeRef, pulseRef) {
     const gl = canvas?.getContext("webgl", { premultipliedAlpha: false, antialias: false });
     if (!gl) return;
     const reduced = prefersReducedMotion();
-    const scale = window.innerWidth < 768 ? 0.4 : 0.5;
+    // Soft smoke: a low-res buffer upscaled looks identical and costs a fraction.
+    const scale = window.innerWidth < 768 ? 0.3 : 0.38;
 
     const compile = (src, type) => {
       const s = gl.createShader(type);
@@ -188,25 +190,29 @@ function useStrengthsScene(ref, active) {
   useEffect(() => {
     const el = ref.current;
     let cancelled = false;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        io.disconnect();
-        import("@/lib/three/StrengthsScene").then(({ mountStrengthsScene }) => {
-          if (cancelled) return;
-          const css = getComputedStyle(el);
-          sceneRef.current = mountStrengthsScene(el, {
-            bone: css.getPropertyValue("--fg").trim() || "#ece6da",
-            hot: css.getPropertyValue("--beam").trim() || "#ff5b22",
-          });
-          sceneRef.current?.setChapter(activeRef.current);
+    // Mounted in idle time right after load (see lib/warmup), or when the section
+    // approaches if the visitor gets there first — never mid-scroll when avoidable.
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      io.disconnect();
+      import("@/lib/three/StrengthsScene").then(({ mountStrengthsScene }) => {
+        if (cancelled) return;
+        const css = getComputedStyle(el);
+        sceneRef.current = mountStrengthsScene(el, {
+          bone: css.getPropertyValue("--fg").trim() || "#ece6da",
+          hot: css.getPropertyValue("--beam").trim() || "#ff5b22",
         });
-      },
-      { rootMargin: "400px 0px" },
-    );
+        sceneRef.current?.setChapter(activeRef.current);
+      });
+    };
+    const io = new IntersectionObserver(([entry]) => entry.isIntersecting && start(), { rootMargin: "400px 0px" });
     io.observe(el);
+    const cancelWarm = warmup(start);
     return () => {
       cancelled = true;
+      cancelWarm();
       io.disconnect();
       sceneRef.current?.destroy();
       sceneRef.current = null;

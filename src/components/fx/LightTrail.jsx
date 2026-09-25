@@ -128,6 +128,7 @@ function start(canvas) {
     targets = [makeTarget(), makeTarget()];
   };
   resize();
+  canvas.style.visibility = "hidden";
 
   const readColor = () => {
     const hex = getComputedStyle(document.documentElement).getPropertyValue("--beam").trim() || "#ff5b22";
@@ -177,6 +178,7 @@ function start(canvas) {
     ptr.py = ptr.y;
     energy -= dt;
     if (energy > 0 && !document.hidden) raf = requestAnimationFrame(frame);
+    else canvas.style.visibility = "hidden"; // no full-screen layer to composite while idle
   };
 
   const onMove = (e) => {
@@ -188,6 +190,7 @@ function start(canvas) {
       ptr.py = ptr.y;
     }
     energy = 1.2; // keep rendering until the trail has faded
+    canvas.style.visibility = "visible";
     if (!raf) {
       last = performance.now();
       raf = requestAnimationFrame(frame);

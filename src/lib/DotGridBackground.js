@@ -1,13 +1,21 @@
+/**
+ * Cursor-reactive dot matrix for the hero. Only dots near the pointer (and
+ * their fading trail) are drawn, as tiny squares batched by opacity level —
+ * a handful of fillStyle changes per frame instead of one per dot. The pointer
+ * position is resolved once per frame (no layout reads in the event handler),
+ * and drawing stops entirely once the pointer is still and the trail has faded.
+ */
+const LEVELS = 6;
+
 export default class DotGridBackground {
   constructor(options = {}) {
     const {
       container = document.body,
-      dotSpacing = 10,
-      baseRadius = 0.4,
-      maxRadius = 2.4,
-      influenceRadius = 200,
-      baseOpacity = 0.035,
-      maxOpacity = 0.22,
+      dotSpacing = 11,
+      baseRadius = 0.6,
+      maxRadius = 1.1,
+      influenceRadius = 340,
+      maxOpacity = 0.55,
       color = "rgba(148, 163, 184, 1)",
     } = options;
 
@@ -16,220 +24,155 @@ export default class DotGridBackground {
     this.baseRadius = baseRadius;
     this.maxRadius = maxRadius;
     this.influenceRadius = influenceRadius;
-    this.baseOpacity = baseOpacity;
     this.maxOpacity = maxOpacity;
-    this.color = color;
+    this.rgb = parseRGB(color);
 
     this.canvas = document.createElement("canvas");
     this.ctx = this.canvas.getContext("2d", { alpha: true });
-    this.canvas.style.position = "absolute";
-    this.canvas.style.inset = "0";
-    this.canvas.style.width = "100%";
-    this.canvas.style.height = "100%";
-    this.canvas.style.pointerEvents = "none";
-    this.canvas.style.zIndex = "1";
-    this.canvas.style.mixBlendMode = "screen";
+    Object.assign(this.canvas.style, { position: "absolute", inset: "0", width: "100%", height: "100%", pointerEvents: "none", zIndex: "1" });
     this.canvas.setAttribute("aria-hidden", "true");
-
     this.container.style.position = this.container.style.position || "relative";
     this.container.prepend(this.canvas);
 
     this.dpr = Math.min(1.5, window.devicePixelRatio || 1);
-    this.dots = [];
+    this.pointer = { cx: 0, cy: 0, active: false };
+    this.idleFrames = Infinity;
+    this.live = new Set();
+    this.influence = new Float32Array(0);
+    this.buckets = Array.from({ length: LEVELS }, () => []);
+    this.styles = Array.from({ length: LEVELS }, (_, i) => {
+      const a = ((i + 0.5) / LEVELS) * this.maxOpacity;
+      return `rgba(${this.rgb[0]}, ${this.rgb[1]}, ${this.rgb[2]}, ${a.toFixed(3)})`;
+    });
 
-    this.pointer = { x: null, y: null, active: false };
-    this.raf = null;
-    this.resizeRaf = null;
-
-    this.handlePointerMove = this.handlePointerMove.bind(this);
-    this.handlePointerLeave = this.handlePointerLeave.bind(this);
-    this.handleResize = this.handleResize.bind(this);
+    this.onMove = (e) => {
+      this.pointer.cx = e.clientX;
+      this.pointer.cy = e.clientY;
+      this.pointer.active = true;
+      this.idleFrames = 0;
+    };
+    this.onLeave = () => {
+      this.pointer.active = false;
+    };
+    this.onResize = () => {
+      cancelAnimationFrame(this.resizeRaf);
+      this.resizeRaf = requestAnimationFrame(() => this.resize());
+    };
     this.animate = this.animate.bind(this);
 
-    this.init();
-  }
-
-  init() {
     this.resize();
-    this.bindEvents();
-    // Only render while the container is on screen.
+    window.addEventListener("resize", this.onResize, { passive: true });
+    window.addEventListener("pointermove", this.onMove, { passive: true });
+    document.addEventListener("pointerleave", this.onLeave);
+    window.addEventListener("blur", this.onLeave);
     this.inView = true;
     this.observer = new IntersectionObserver(([entry]) => {
       this.inView = entry.isIntersecting;
     });
     this.observer.observe(this.container);
-    this.animate();
-  }
-
-  bindEvents() {
-    window.addEventListener("resize", this.handleResize, { passive: true });
-
-    window.addEventListener("mousemove", this.handlePointerMove, {
-      passive: true,
-    });
-    window.addEventListener("mouseleave", this.handlePointerLeave, {
-      passive: true,
-    });
-    window.addEventListener("blur", this.handlePointerLeave, { passive: true });
-  }
-
-  handleResize() {
-    if (this.resizeRaf) cancelAnimationFrame(this.resizeRaf);
-    this.resizeRaf = requestAnimationFrame(() => this.resize());
+    this.raf = requestAnimationFrame(this.animate);
   }
 
   resize() {
-    const rect = this.container.getBoundingClientRect();
-    const width = rect.width || window.innerWidth;
-    const height = rect.height || window.innerHeight;
-
-    const dpr = this.dpr;
-    this.canvas.width = Math.max(1, Math.round(width * dpr));
-    this.canvas.height = Math.max(1, Math.round(height * dpr));
-
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
-
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    this.buildGrid(width, height);
-  }
-
-  buildGrid(width, height) {
-    this.dots.length = 0;
-    this.live = new Set();
-    const spacing = this.dotSpacing;
-    this.cols = Math.floor((width + spacing) / spacing) + 1;
-    this.rows = Math.floor((height + spacing) / spacing) + 1;
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        this.dots.push({ x: c * spacing, y: r * spacing, phase: Math.random() * Math.PI * 2, influence: 0 });
-      }
-    }
-  }
-
-  handlePointerMove(ev) {
-    const rect = this.container.getBoundingClientRect();
-    const x = ev.clientX - rect.left;
-    const y = ev.clientY - rect.top;
-
-    if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
-      this.handlePointerLeave();
-      return;
-    }
-
-    this.pointer.x = x;
-    this.pointer.y = y;
-    this.pointer.active = true;
-  }
-
-  handlePointerLeave() {
-    this.pointer.x = null;
-    this.pointer.y = null;
-    this.pointer.active = false;
+    const width = this.container.clientWidth || window.innerWidth;
+    const height = this.container.clientHeight || window.innerHeight;
+    this.canvas.width = Math.max(1, Math.round(width * this.dpr));
+    this.canvas.height = Math.max(1, Math.round(height * this.dpr));
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.w = width;
+    this.h = height;
+    const s = this.dotSpacing;
+    this.cols = Math.floor(width / s) + 1;
+    this.rows = Math.floor(height / s) + 1;
+    this.influence = new Float32Array(this.cols * this.rows);
+    this.live.clear();
+    this.idleFrames = 0;
   }
 
   animate() {
     this.raf = requestAnimationFrame(this.animate);
     if (document.hidden || !this.inView) return;
+    // Pointer still for ~2.5s: the trail has faded and the canvas already shows the final frame.
+    if (this.idleFrames > 150) return;
+    this.idleFrames++;
     this.render();
   }
 
-  /**
-   * Only dots near the pointer (plus their fading trail) are touched each
-   * frame; with no pointer the canvas is cleared once and the frame skipped.
-   */
   render() {
-    const ctx = this.ctx;
-    if (!ctx || !this.dots.length) return;
-    const width = this.canvas.width / this.dpr;
-    const height = this.canvas.height / this.dpr;
-    const { active, x: px, y: py } = this.pointer;
+    const { ctx, dotSpacing: s, influenceRadius: R } = this;
+    ctx.clearRect(0, 0, this.w, this.h);
 
-    if (!active) {
-      if (this.dirty) {
-        ctx.clearRect(0, 0, width, height);
-        this.dirty = false;
-        for (const i of this.live) this.dots[i].influence = 0;
-        this.live.clear();
-      }
-      return;
-    }
-
-    ctx.clearRect(0, 0, width, height);
-    this.dirty = true;
-
-    const decay = 0.96;
     for (const i of this.live) {
-      const dot = this.dots[i];
-      dot.influence *= decay;
-      if (dot.influence < 0.001) this.live.delete(i);
-    }
-
-    const s = this.dotSpacing;
-    const R = this.influenceRadius;
-    const c0 = Math.max(0, Math.floor((px - R) / s));
-    const c1 = Math.min(this.cols - 1, Math.ceil((px + R) / s));
-    const r0 = Math.max(0, Math.floor((py - R) / s));
-    const r1 = Math.min(this.rows - 1, Math.ceil((py + R) / s));
-    const maxDistSq = R * R;
-    for (let r = r0; r <= r1; r++) {
-      for (let c = c0; c <= c1; c++) {
-        const i = r * this.cols + c;
-        const dot = this.dots[i];
-        const dx = dot.x - px;
-        const dy = dot.y - py;
-        const d2 = dx * dx + dy * dy;
-        if (d2 >= maxDistSq) continue;
-        const t = 1 - Math.sqrt(d2) / R;
-        const target = t * t;
-        if (target > dot.influence) dot.influence = target;
-        this.live.add(i);
+      this.influence[i] *= 0.95;
+      if (this.influence[i] < 0.004) {
+        this.influence[i] = 0;
+        this.live.delete(i);
       }
     }
 
-    if (!this.rgb) this.rgb = this.parseRGB(this.color);
-    const [cr, cg, cb] = this.rgb;
-    const time = performance.now() * 0.001;
-    const baseR = this.baseRadius;
-    const maxR = this.maxRadius;
-    for (const i of this.live) {
-      const dot = this.dots[i];
-      const inf = dot.influence;
-      const alpha = Math.min(this.maxOpacity, this.maxOpacity * inf * inf);
-      if (alpha <= 0.001) continue;
-      const idle = 0.12 + 0.07 * Math.sin(time * 0.5 + dot.phase);
-      ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(dot.x, dot.y, baseR + (maxR - baseR) * (inf * 0.9 + idle * 0.08), 0, Math.PI * 2);
-      ctx.fill();
+    if (this.pointer.active) {
+      const rect = this.container.getBoundingClientRect();
+      const px = this.pointer.cx - rect.left;
+      const py = this.pointer.cy - rect.top;
+      if (px >= -R && py >= -R && px <= rect.width + R && py <= rect.height + R) {
+        const c0 = Math.max(0, Math.floor((px - R) / s));
+        const c1 = Math.min(this.cols - 1, Math.ceil((px + R) / s));
+        const r0 = Math.max(0, Math.floor((py - R) / s));
+        const r1 = Math.min(this.rows - 1, Math.ceil((py + R) / s));
+        const R2 = R * R;
+        for (let r = r0; r <= r1; r++) {
+          const dy = r * s - py;
+          for (let c = c0; c <= c1; c++) {
+            const dx = c * s - px;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= R2) continue;
+            const t = 1 - Math.sqrt(d2) / R;
+            const target = t * t;
+            const i = r * this.cols + c;
+            if (target > this.influence[i]) this.influence[i] = target;
+            this.live.add(i);
+          }
+        }
+      }
     }
-  }
 
-  parseRGB(rgbStr) {
-    if (!rgbStr.startsWith("rgba") && !rgbStr.startsWith("rgb")) {
-      return [148, 163, 184];
+    const buckets = this.buckets;
+    for (const b of buckets) b.length = 0;
+    for (const i of this.live) {
+      const inf = this.influence[i];
+      const a = inf * inf; // 0..1 of maxOpacity
+      if (a < 0.01) continue;
+      buckets[Math.min(LEVELS - 1, Math.floor(a * LEVELS))].push(i);
     }
-    const match = rgbStr.match(/rgba?\(([^)]+)\)/);
-    if (!match) return [148, 163, 184];
-    const parts = match[1].split(",").map((v) => parseFloat(v.trim()));
-    return [parts[0] || 148, parts[1] || 163, parts[2] || 184];
+    const { baseRadius: br, maxRadius: mr, cols } = this;
+    for (let l = 0; l < LEVELS; l++) {
+      const list = buckets[l];
+      if (!list.length) continue;
+      ctx.fillStyle = this.styles[l];
+      const size = 2 * (br + (mr - br) * ((l + 0.5) / LEVELS));
+      const half = size / 2;
+      for (let k = 0; k < list.length; k++) {
+        const i = list[k];
+        ctx.fillRect((i % cols) * s - half, ((i / cols) | 0) * s - half, size, size);
+      }
+    }
   }
 
   destroy() {
     cancelAnimationFrame(this.raf);
-    this.observer?.disconnect();
     cancelAnimationFrame(this.resizeRaf);
-
-    window.removeEventListener("resize", this.handleResize);
-    window.removeEventListener("mousemove", this.handlePointerMove);
-    window.removeEventListener("mouseleave", this.handlePointerLeave);
-    window.removeEventListener("blur", this.handlePointerLeave);
-
-    if (this.canvas && this.canvas.parentElement === this.container) {
-      this.container.removeChild(this.canvas);
-    }
-
-    this.dots.length = 0;
+    this.observer?.disconnect();
+    window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("pointermove", this.onMove);
+    document.removeEventListener("pointerleave", this.onLeave);
+    window.removeEventListener("blur", this.onLeave);
+    this.canvas.remove();
   }
+}
+
+function parseRGB(str) {
+  const m = /rgba?\(([^)]+)\)/.exec(str || "");
+  if (!m) return [148, 163, 184];
+  const [r, g, b] = m[1].split(",").map((v) => parseFloat(v));
+  return [r || 0, g || 0, b || 0];
 }

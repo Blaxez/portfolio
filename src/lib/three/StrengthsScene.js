@@ -165,10 +165,11 @@ export function mountStrengthsScene(container, { bone = "#ece6da", hot = "#ff5b2
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
+    renderer.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
   } catch {
     return null;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5));
   renderer.setClearColor(0x000000, 0);
   const canvas = renderer.domElement;
   canvas.style.cssText = "display:block;width:100%;height:100%;";

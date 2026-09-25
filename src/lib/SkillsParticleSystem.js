@@ -22,7 +22,7 @@ export class SkillsParticleSystem {
     this.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.isMobile = isMobile;
     this.config = {
-      maxParticles: isMobile ? 14000 : 30000,
+      maxParticles: isMobile ? 12000 : 22000,
       particleSize: isMobile ? 4.0 : 2.0,
       morphSpeed: 1.5,
       explosionForce: 0.5,
@@ -74,7 +74,8 @@ export class SkillsParticleSystem {
     this.camera.position.set(0, 0, 20);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: "high-performance" });
-    this.pixelRatio = Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.5 : 1.75);
+    this.renderer.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
+    this.pixelRatio = Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.5 : 1.5);
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(w, h);
     this.renderer.toneMapping = THREE.ReinhardToneMapping;
@@ -86,6 +87,8 @@ export class SkillsParticleSystem {
 
     if (this.config.bloom) {
       this.composer = new EffectComposer(this.renderer);
+      // Bloom is soft by nature: render its chain at 1× instead of the device ratio.
+      this.composer.setPixelRatio(1);
       this.composer.addPass(new RenderPass(this.scene, this.camera));
       this.composer.addPass(
         new UnrealBloomPass(new THREE.Vector2(w, h), this.config.bloomStrength, this.config.bloomRadius, this.config.bloomThreshold),

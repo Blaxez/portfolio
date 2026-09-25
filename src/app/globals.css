@@ -319,10 +319,10 @@
   box-shadow: 0 18px 50px -10px rgba(255, 91, 34, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 .btn-ghost {
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  /* Opaque enough to read over the laser without a (per-frame) backdrop blur. */
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
   color: var(--fg);
   border-color: var(--line-strong);
-  backdrop-filter: blur(12px);
 }
 .btn-ghost::before {
   display: none;
@@ -973,4 +973,22 @@ html.has-custom-cursor :is(input, textarea, select) {
   .project-card .aspect-\[2\/1\] {
     aspect-ratio: 5 / 2;
   }
+}
+
+/* ── Compositor layers for things GSAP moves every scroll frame ───
+   Transforms on promoted layers are moved by the GPU; without a layer the
+   surrounding area is re-rasterised each frame (the main scroll cost). */
+.project-card,
+.project-img,
+.hero-layout,
+.hero-name-mask,
+.scroll-progress,
+[data-marquee-row] {
+  will-change: transform;
+}
+
+[data-offscreen] *,
+[data-offscreen] *::before,
+[data-offscreen] *::after {
+  animation-play-state: paused !important;
 }

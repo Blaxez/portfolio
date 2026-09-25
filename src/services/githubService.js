@@ -1,4 +1,4 @@
-const CACHE_KEY = "gh_projects_cache_v3";
+const CACHE_KEY = "gh_projects_cache_v4";
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour — the unauthenticated API allows 60 requests/hour per visitor IP
 const MAX_PROJECTS = 10;
 
@@ -82,8 +82,6 @@ export async function fetchAllProjects(signal) {
       stars: repo.stargazers_count,
       language: repo.language,
       topics: (repo.topics || []).slice(0, 3),
-      // GitHub's own social preview for the repo — real, per-project imagery.
-      image: `https://opengraph.githubassets.com/${encodeURIComponent(repo.pushed_at || "1")}/${repo.owner?.login}/${repo.name}`,
       updatedAt: repo.pushed_at || repo.updated_at,
     }));
 

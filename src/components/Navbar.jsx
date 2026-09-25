@@ -166,9 +166,9 @@ export default function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: hidden && !isOpen ? -110 : 0 }}
         transition={{ duration: 0.6, ease }}
-        className={`fixed top-0 inset-x-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-500 border-b ${
+        className={`fixed top-0 inset-x-0 z-50 transition-[background-color,border-color] duration-500 border-b ${
           overHero ? "stage-dark !bg-transparent border-transparent" : "border-[var(--border)]"
-        } ${scrolled && !isOpen ? "bg-[var(--bg)]/85 backdrop-blur-md" : ""}`}
+        } ${scrolled && !isOpen ? "bg-[var(--bg)]/95" : ""}`}
       >
         <div className="max-w-screen-container nav-bar-spacing flex justify-between items-center gap-6">
           <a
@@ -218,7 +218,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="w-11 h-11 border border-[var(--border)] rounded-full flex items-center justify-center hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors relative z-[60] bg-[var(--bg)]/60 text-[var(--fg)] backdrop-blur"
+              className="w-11 h-11 border border-[var(--border)] rounded-full flex items-center justify-center hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors relative z-[60] bg-[var(--bg)]/80 text-[var(--fg)]"
               aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             >
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -233,7 +233,7 @@ export default function Navbar() {
               className={`lg:hidden w-11 h-11 border rounded-full flex items-center justify-center transition-colors relative z-[60] ${
                 isOpen
                   ? "border-black text-black bg-transparent"
-                  : "border-[var(--border)] text-[var(--fg)] hover:bg-[var(--fg)] hover:text-[var(--bg)] bg-[var(--bg)]/60 backdrop-blur"
+                  : "border-[var(--border)] text-[var(--fg)] hover:bg-[var(--fg)] hover:text-[var(--bg)] bg-[var(--bg)]/80"
               }`}
             >
               {isOpen ? <X size={18} /> : <Menu size={18} />}
