@@ -60,7 +60,7 @@ export default function ScrollHUD() {
                 scrollToTarget(`#${s.id}`);
               }}
               aria-current={isActive ? "step" : undefined}
-              className="group flex items-center gap-3 py-1 font-mono text-[10px] uppercase tracking-[0.25em]"
+              className="group flex items-center gap-3 py-1 text-[0.66rem] font-medium uppercase tracking-[0.16em]"
             >
               <span
                 className={`transition-all duration-500 ${
@@ -76,7 +76,7 @@ export default function ScrollHUD() {
             </a>
           );
         })}
-        <span aria-hidden="true" className="mt-2 font-mono text-[10px] tracking-[0.25em] opacity-60">
+        <span aria-hidden="true" className="mt-2 tabular text-[0.66rem] tracking-[0.16em] opacity-60">
           {String(activeIndex + 1).padStart(2, "0")}/{String(SECTIONS.length).padStart(2, "0")}
         </span>
       </nav>
