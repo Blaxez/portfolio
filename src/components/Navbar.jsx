@@ -2,20 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Menu, X } from "lucide-react";
 import { useTheme } from "./providers/ThemeProvider";
+import LocalTime from "./ui/LocalTime";
 import { SITE } from "@/lib/site";
 import { scrollToTarget } from "@/lib/scroll";
 
 const NAV_LINKS = [
   { id: "about", label: "About" },
-  { id: "skills", label: "Skills" },
-  { id: "strengths", label: "Strengths" },
+  { id: "skills", label: "Stack" },
+  { id: "strengths", label: "Practice" },
   { id: "projects", label: "Work" },
   { id: "contact", label: "Contact" },
 ];
 
 const ease = [0.76, 0, 0.24, 1];
+const easeOut = [0.16, 1, 0.3, 1];
+
+function ThemeGlyph({ dark }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" className="transition-transform duration-700" style={{ transform: `rotate(${dark ? 0 : 180}deg)` }}>
+      <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" strokeWidth="1" />
+      <path d="M7 1a6 6 0 0 1 0 12z" fill="currentColor" />
+    </svg>
+  );
+}
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -102,7 +112,7 @@ export default function Navbar() {
     requestAnimationFrame(() => scrollToTarget(`#${id}`));
   };
 
-  const overHero = !scrolled && !isOpen;
+  const overHero = !scrolled || isOpen;
 
   return (
     <>
@@ -115,49 +125,59 @@ export default function Navbar() {
             aria-modal="true"
             aria-label="Site menu"
             initial={{ clipPath: "inset(0 0 100% 0)" }}
-            animate={{ clipPath: "inset(0 0 0% 0)", transition: { duration: 0.8, ease } }}
+            animate={{ clipPath: "inset(0 0 0% 0)", transition: { duration: 0.85, ease } }}
             exit={{ clipPath: "inset(0 0 100% 0)", transition: { duration: 0.6, ease } }}
-            className="fixed inset-0 z-[40] flex flex-col justify-center px-6 md:px-20 overflow-y-auto"
-            style={{ background: "linear-gradient(135deg, #38bdf8, #3b82f6 50%, #4f46e5)" }}
+            className="stage-dark fixed inset-0 z-[40] flex flex-col overflow-y-auto"
             data-lenis-prevent
           >
-            <nav aria-label="Menu" className="flex flex-col gap-1 min-h-full justify-center py-24">
-              {NAV_LINKS.map((item, i) => (
-                <div key={item.id} className="overflow-hidden">
-                  <motion.a
-                    href={`#${item.id}`}
-                    onClick={(e) => go(e, item.id)}
-                    initial={{ y: "110%" }}
-                    animate={{ y: 0 }}
-                    transition={{ delay: 0.25 + i * 0.07, duration: 0.8, ease }}
-                    className="group flex items-baseline gap-4 w-fit text-5xl md:text-8xl font-black text-black uppercase tracking-tighter"
-                  >
-                    <span className="font-mono text-xs md:text-sm tracking-widest text-black/60">0{i + 1}</span>
-                    <span className="transition-transform duration-500 group-hover:translate-x-4 group-hover:text-white group-focus-visible:text-white">
-                      {item.label}
-                    </span>
-                  </motion.a>
-                </div>
-              ))}
-            </nav>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { delay: 0.7 } }}
-              className="absolute bottom-10 left-6 md:left-20 right-6 flex flex-wrap gap-x-8 gap-y-3 text-black font-mono text-sm uppercase tracking-widest"
-            >
-              {SITE.socials.map((s) => (
-                <a
-                  key={s.id}
-                  href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="min-h-11 inline-flex items-center hover:text-white transition-colors"
-                >
-                  {s.label}
-                  <span className="sr-only"> (opens in a new tab)</span>
+            <div className="max-w-screen-container layout-padding flex min-h-full flex-col pt-28 pb-10">
+              <motion.div
+                aria-hidden="true"
+                className="h-px origin-left bg-[var(--beam)]"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1, transition: { delay: 0.25, duration: 1.1, ease } }}
+              />
+              <nav aria-label="Menu" className="flex flex-1 flex-col justify-center py-10">
+                <ul className="flex flex-col">
+                  {NAV_LINKS.map((item, i) => (
+                    <li key={item.id} className="overflow-hidden border-b border-[var(--line)]">
+                      <motion.a
+                        href={`#${item.id}`}
+                        onClick={(e) => go(e, item.id)}
+                        initial={{ y: "105%" }}
+                        animate={{ y: 0 }}
+                        transition={{ delay: 0.3 + i * 0.06, duration: 0.9, ease: easeOut }}
+                        className="group flex items-baseline justify-between gap-6 py-3 md:py-4"
+                      >
+                        <span className="serif text-[3.2rem] leading-[1] tracking-[-0.03em] md:text-8xl transition-[color,transform] duration-500 group-hover:translate-x-3 group-hover:italic group-hover:text-[var(--signal)] group-focus-visible:italic">
+                          {item.label}
+                        </span>
+                        <span className="index text-[var(--muted)]">({String(i + 1).padStart(2, "0")})</span>
+                      </motion.a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { delay: 0.7 } }}
+                className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
+              >
+                <a href={`mailto:${SITE.email}`} className="link-u is-static w-fit break-all text-[var(--fg)]">
+                  {SITE.email}
                 </a>
-              ))}
-            </motion.div>
+                <ul className="flex flex-wrap gap-x-7 gap-y-2">
+                  {SITE.socials.map((s) => (
+                    <li key={s.id}>
+                      <a href={s.href} target="_blank" rel="noopener noreferrer" className="label link-u inline-flex min-h-11 items-center hover:text-[var(--fg)]">
+                        {s.label}
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -165,46 +185,38 @@ export default function Navbar() {
       <motion.header
         initial={{ y: -100 }}
         animate={{ y: hidden && !isOpen ? -110 : 0 }}
-        transition={{ duration: 0.6, ease }}
-        className={`fixed top-0 inset-x-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-500 border-b ${
-          overHero ? "stage-dark !bg-transparent border-transparent" : "border-[var(--border)]"
-        } ${scrolled && !isOpen ? "bg-[var(--bg)]/85 backdrop-blur-md" : ""}`}
+        transition={{ duration: 0.7, ease }}
+        className={`fixed top-0 inset-x-0 z-50 border-b transition-[background-color,border-color] duration-500 ${
+          overHero ? "stage-dark !bg-transparent border-transparent" : "bg-[var(--bg)]/95 border-[var(--line)]"
+        }`}
       >
-        <div className="max-w-screen-container nav-bar-spacing flex justify-between items-center gap-6">
-          <a
-            href="#hero"
-            onClick={(e) => go(e, "hero")}
-            className={`flex items-center gap-3 ${isOpen ? "text-black" : "text-[var(--fg)]"}`}
-            data-magnetic="0.2"
-          >
-            <span
-              aria-hidden="true"
-              className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-[#38bdf8] to-[#4f46e5] flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-blue-500/30 flex-shrink-0"
-            >
-              {SITE.monogram}
+        <div className="max-w-screen-container layout-padding flex h-[72px] items-center justify-between gap-6 md:h-20">
+          <div className="flex items-baseline gap-6">
+            <a href="#hero" onClick={(e) => go(e, "hero")} className="serif text-[1.4rem] leading-none tracking-[-0.01em] text-[var(--fg)]" data-magnetic="0.15">
+              Santosh <em>Maurya</em>
+            </a>
+            <span className="label hidden xl:inline">
+              {SITE.location.split(",")[0]} · <LocalTime withLabel={false} />
             </span>
-            <span className="flex flex-col">
-              <span className="text-base md:text-lg font-black tracking-tight leading-none uppercase">{SITE.name}</span>
-              <span className="hidden sm:block text-[10px] font-mono uppercase tracking-widest opacity-70 leading-none mt-1">
-                Full-Stack · AI/ML · Games
-              </span>
-            </span>
-          </a>
+          </div>
 
           <nav aria-label="Primary" className="hidden lg:block">
-            <ul className="flex items-center gap-1">
-              {NAV_LINKS.map((item) => (
+            <ul className="flex items-center gap-8">
+              {NAV_LINKS.map((item, i) => (
                 <li key={item.id}>
                   <a
                     href={`#${item.id}`}
                     onClick={(e) => go(e, item.id)}
                     aria-current={active === item.id ? "location" : undefined}
-                    className="relative px-4 py-3 font-mono text-xs uppercase tracking-widest text-[var(--muted)] hover:text-[var(--fg)] aria-[current]:text-[var(--fg)] transition-colors"
+                    className="group relative inline-flex min-h-11 items-center text-[0.92rem] text-[var(--muted)] transition-colors hover:text-[var(--fg)] aria-[current]:text-[var(--fg)]"
                   >
                     {item.label}
+                    <sup className="ml-0.5 -top-2 text-[0.6rem] tabular text-[var(--faint)] group-aria-[current]:text-[var(--signal)]">
+                      {String(i + 1).padStart(2, "0")}
+                    </sup>
                     <span
                       aria-hidden="true"
-                      className={`absolute left-4 right-4 bottom-1.5 h-px bg-[var(--acc)] origin-left transition-transform duration-500 ${
+                      className={`absolute left-0 right-3 bottom-2 h-px origin-left bg-[var(--beam)] transition-transform duration-700 ${
                         active === item.id ? "scale-x-100" : "scale-x-0"
                       }`}
                     />
@@ -214,14 +226,17 @@ export default function Navbar() {
             </ul>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={toggleTheme}
-              className="w-11 h-11 border border-[var(--border)] rounded-full flex items-center justify-center hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors relative z-[60] bg-[var(--bg)]/60 text-[var(--fg)] backdrop-blur"
+              className="relative z-[60] inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-[0.85rem] text-[var(--muted)] transition-colors hover:text-[var(--fg)]"
               aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             >
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              <ThemeGlyph dark={theme === "dark"} />
+              <span className="hidden sm:inline" aria-hidden="true">
+                {theme === "dark" ? "Light" : "Dark"}
+              </span>
             </button>
             <button
               ref={toggleRef}
@@ -230,13 +245,13 @@ export default function Navbar() {
               aria-label={isOpen ? "Close menu" : "Open menu"}
               aria-expanded={isOpen}
               aria-controls="site-menu"
-              className={`lg:hidden w-11 h-11 border rounded-full flex items-center justify-center transition-colors relative z-[60] ${
-                isOpen
-                  ? "border-black text-black bg-transparent"
-                  : "border-[var(--border)] text-[var(--fg)] hover:bg-[var(--fg)] hover:text-[var(--bg)] bg-[var(--bg)]/60 backdrop-blur"
-              }`}
+              className="relative z-[60] inline-flex min-h-11 items-center gap-3 rounded-full border border-[var(--line-strong)] pl-4 pr-3.5 text-[0.85rem] text-[var(--fg)] transition-colors hover:border-[var(--fg)] lg:hidden"
             >
-              {isOpen ? <X size={18} /> : <Menu size={18} />}
+              <span aria-hidden="true">{isOpen ? "Close" : "Menu"}</span>
+              <span aria-hidden="true" className="relative block h-2.5 w-4">
+                <span className={`absolute left-0 right-0 h-px bg-current transition-transform duration-500 ${isOpen ? "top-1/2 rotate-45" : "top-0"}`} />
+                <span className={`absolute left-0 right-0 h-px bg-current transition-transform duration-500 ${isOpen ? "top-1/2 -rotate-45" : "bottom-0"}`} />
+              </span>
             </button>
           </div>
         </div>

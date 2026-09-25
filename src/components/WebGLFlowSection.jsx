@@ -3,18 +3,20 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import SectionHeading from "./ui/SectionHeading";
+import Rule from "./ui/Rule";
+import Diagrams from "./strengths/Diagrams";
 import { prefersReducedMotion } from "@/lib/scroll";
 import { afterFirstPaint } from "@/lib/idle";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Smoke stays in the warm ink family; each chapter shifts it slightly toward the beam.
 const ITEMS = [
-  { id: "01", title: "Architecture", desc: "Designing scalable systems with clean, maintainable code that handles real-world complexity.", color: [0.4, 0.6, 1.0], speed: 0.3, density: 1.2 },
-  { id: "02", title: "Execution", desc: "Rapid prototyping to production — no delays, no compromises on quality.", color: [0.0, 0.8, 1.0], speed: 0.8, density: 0.9 },
-  { id: "03", title: "AI / ML", desc: "Building intelligent systems with TensorFlow, PyTorch, and modern LLM integrations.", color: [0.3, 1.0, 0.5], speed: 0.4, density: 1.1 },
-  { id: "04", title: "Game Dev", desc: "Crafting immersive experiences in Unreal Engine and custom WebGL renderers.", color: [0.6, 0.3, 1.0], speed: 0.5, density: 1.0 },
-  { id: "05", title: "Full-Stack", desc: "End-to-end delivery — React, Next.js, Node, databases, deployment and beyond.", color: [0.2, 0.8, 0.8], speed: 0.6, density: 1.0 },
+  { id: "01", title: "Architecture", desc: "Designing scalable systems with clean, maintainable code that handles real-world complexity.", color: [0.62, 0.55, 0.48], speed: 0.3, density: 1.2 },
+  { id: "02", title: "Execution", desc: "Rapid prototyping to production — no delays, no compromises on quality.", color: [0.78, 0.5, 0.36], speed: 0.8, density: 0.9 },
+  { id: "03", title: "AI / ML", desc: "Building intelligent systems with TensorFlow, PyTorch, and modern LLM integrations.", color: [0.66, 0.58, 0.5], speed: 0.4, density: 1.1 },
+  { id: "04", title: "Game Dev", desc: "Crafting immersive experiences in Unreal Engine and custom WebGL renderers.", color: [0.85, 0.45, 0.3], speed: 0.5, density: 1.0 },
+  { id: "05", title: "Full-Stack", desc: "End-to-end delivery — React, Next.js, Node, databases, deployment and beyond.", color: [0.7, 0.6, 0.52], speed: 0.6, density: 1.0 },
 ];
 
 const VERT = `attribute vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
@@ -56,7 +58,7 @@ const FRAG = `
     float f = fbm(st + r);
     float smoke = f * f * u_density + 0.6 * f + u_pulse * 0.35 * exp(-md * 1.5);
     float alpha = smoothstep(0.2, 0.9, smoke);
-    gl_FragColor = vec4(u_color * smoke, alpha * 0.45);
+    gl_FragColor = vec4(u_color * smoke, alpha * 0.3);
   }
 `;
 
@@ -205,7 +207,7 @@ export default function WebGLFlowSection() {
             pulseRef.current = 1;
             setActive(idx);
           }
-          if (barRef.current) barRef.current.style.transform = `scaleY(${progress})`;
+          if (barRef.current) barRef.current.style.transform = `scaleX(${progress})`;
         },
       });
     });
@@ -228,70 +230,57 @@ export default function WebGLFlowSection() {
     else window.scrollTo({ top: y, behavior: "smooth" });
   };
 
+  const item = ITEMS[active];
+
   return (
     <section
       id="strengths"
       ref={sectionRef}
       aria-labelledby="strengths-title"
-      className="stage-dark relative border-y border-[var(--border)]"
-      style={{ height: pinned ? `${ITEMS.length * 70 + 100}svh` : undefined }}
+      className="stage-dark relative"
+      style={{ height: pinned ? `${ITEMS.length * 75 + 100}svh` : undefined }}
     >
-      <div className={`${pinned ? "sticky top-0 h-[100svh]" : "relative py-24"} overflow-hidden flex items-center`}>
+      <div className={`${pinned ? "sticky top-0 h-[100svh]" : "relative py-24"} overflow-hidden flex flex-col`}>
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" />
-        <AnimatePresence mode="popLayout">
-          <motion.span
-            key={active}
-            aria-hidden="true"
-            initial={{ y: "30%", opacity: 0 }}
-            animate={{ y: "0%", opacity: 1 }}
-            exit={{ y: "-30%", opacity: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-[-2vw] bottom-[-6vw] font-black leading-none tracking-tighter text-[38vw] md:text-[26vw] text-white/[0.04] pointer-events-none select-none"
-          >
-            {ITEMS[active].id}
-          </motion.span>
-        </AnimatePresence>
 
-        <div className="relative z-10 max-w-screen-container layout-padding w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20">
-          <div className="flex flex-col justify-center">
-            <SectionHeading index="03" eyebrow="What I bring" title={["Core", "Strengths"]} id="strengths-title">
-              I combine deep technical knowledge with creative problem-solving to deliver real-world solutions that scale.
-            </SectionHeading>
-            {pinned ? (
-              <p className="mt-8 font-mono text-[10px] md:text-xs uppercase tracking-[0.25em] text-[var(--muted)]" aria-hidden="true">
-                {ITEMS[active].id} / {String(ITEMS.length).padStart(2, "0")} — keep scrolling
-              </p>
-            ) : null}
+        <div className="relative z-10 max-w-screen-container layout-padding w-full pt-24 md:pt-28">
+          <Rule />
+          <div className="mt-4 flex items-baseline justify-between gap-6" data-reveal="up">
+            <span className="flex items-baseline gap-4">
+              <span className="index">(03)</span>
+              <span className="label">Practice</span>
+            </span>
+            <span className="label tabular">
+              {item.id} / {String(ITEMS.length).padStart(2, "0")}
+            </span>
           </div>
+        </div>
 
-          <div className="relative flex">
-            <div aria-hidden="true" className="hidden md:block absolute left-0 top-0 bottom-0 w-px bg-[var(--border)]">
-              <div ref={barRef} className="absolute inset-0 origin-top bg-[var(--acc)]" style={{ transform: "scaleY(0)" }} />
-            </div>
-            <ol className="flex flex-col gap-1 md:gap-2 w-full md:pl-8">
-              {ITEMS.map((item, i) => {
+        <div className="relative z-10 max-w-screen-container layout-padding w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center py-6 md:py-10">
+          <div className="lg:col-span-5 flex flex-col gap-6 md:gap-10 order-2 lg:order-1">
+            <h2 id="strengths-title" className="title is-compact" data-split>
+              What I <em>bring</em> to a team.
+            </h2>
+            <ol className="flex flex-col">
+              {ITEMS.map((it, i) => {
                 const isActive = active === i;
                 return (
-                  <li key={item.id}>
+                  <li key={it.id} className={`${isActive || !pinned ? "" : "hidden lg:block"} border-t border-[var(--line)] last:border-b`}>
                     <button
                       type="button"
                       onClick={() => choose(i)}
                       aria-current={isActive ? "step" : undefined}
                       aria-expanded={isActive}
-                      className={`group w-full text-left rounded-2xl px-4 md:px-6 py-3 md:py-5 transition-[background-color,transform] duration-500 ${
-                        isActive ? "bg-white/[0.07] translate-x-2" : "hover:bg-white/[0.03]"
-                      }`}
+                      className="group w-full text-left py-3 md:py-4"
                     >
-                      <span className="flex items-baseline gap-4 md:gap-6">
-                        <span className={`font-mono text-xs md:text-sm transition-colors ${isActive ? "text-[var(--acc)]" : "text-[var(--muted)]"}`}>
-                          {item.id}
-                        </span>
+                      <span className="flex items-baseline gap-5">
+                        <span className={`tabular text-[0.72rem] transition-colors ${isActive ? "text-[var(--signal)]" : "text-[var(--faint)]"}`}>{it.id}</span>
                         <span
-                          className={`text-2xl md:text-4xl font-black uppercase tracking-tighter transition-colors duration-500 ${
-                            isActive ? "text-[var(--fg)]" : "text-[var(--faint)] group-hover:text-[var(--muted)]"
+                          className={`serif text-[1.7rem] md:text-[2.1rem] leading-none tracking-[-0.02em] transition-[color] duration-500 ${
+                            isActive ? "italic text-[var(--fg)]" : "text-[var(--faint)] group-hover:text-[var(--muted)]"
                           }`}
                         >
-                          {item.title}
+                          {it.title}
                         </span>
                       </span>
                       <AnimatePresence initial={false}>
@@ -300,12 +289,10 @@ export default function WebGLFlowSection() {
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                             className="block overflow-hidden"
                           >
-                            <span className="block pt-3 pl-9 md:pl-12 text-sm md:text-base text-[var(--muted)] max-w-md leading-relaxed">
-                              {item.desc}
-                            </span>
+                            <span className="block pt-3 pl-9 text-[0.98rem] text-[var(--muted)] max-w-md leading-relaxed">{it.desc}</span>
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -314,8 +301,33 @@ export default function WebGLFlowSection() {
                 );
               })}
             </ol>
+            {pinned ? (
+              <div className="flex items-center gap-2 lg:hidden" aria-hidden="true">
+                {ITEMS.map((it, i) => (
+                  <span key={it.id} className={`h-px flex-1 transition-colors duration-500 ${i <= active ? "bg-[var(--beam)]" : "bg-[var(--line-strong)]"}`} />
+                ))}
+              </div>
+            ) : null}
           </div>
+
+          <figure className="lg:col-span-6 lg:col-start-7 order-1 lg:order-2 flex flex-col items-center">
+            <div className="w-full max-w-[min(34vh,300px)] sm:max-w-[min(44vh,420px)] lg:max-w-[min(62vh,540px)]">
+              <Diagrams active={active} />
+            </div>
+            <figcaption className="mt-3 w-full max-w-[min(62vh,540px)] hidden md:flex items-baseline justify-between gap-4">
+              <span className="index">Fig. {active + 2}</span>
+              <span className="label">{item.title}</span>
+            </figcaption>
+          </figure>
         </div>
+
+        {pinned ? (
+          <div className="relative z-10 max-w-screen-container layout-padding w-full pb-6 md:pb-8 hidden lg:block" aria-hidden="true">
+            <div className="h-px bg-[var(--line)] overflow-hidden">
+              <div ref={barRef} className="h-full origin-left bg-[var(--beam)]" style={{ transform: "scaleX(0)" }} />
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

@@ -4,11 +4,16 @@ import SmoothScroll from "@/components/providers/SmoothScroll";
 import Cursor from "@/components/fx/Cursor";
 import { getAssetPath } from "@/lib/assets";
 import { SITE } from "@/lib/site";
-import { Anton, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Instrument_Serif, Instrument_Sans } from "next/font/google";
 
-const anton = Anton({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-anton" });
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], display: "swap", variable: "--font-space-grotesk" });
-const jetbrains = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-jetbrains", preload: false });
+const serif = Instrument_Serif({
+  weight: "400",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-instrument-serif",
+});
+const sans = Instrument_Sans({ subsets: ["latin"], display: "swap", variable: "--font-instrument-sans" });
 
 const title = `${SITE.name} — ${SITE.role}`;
 
@@ -22,7 +27,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#050505",
+  themeColor: "#0b0a09",
 };
 
 // Applied before first paint: no theme flash. Dark is the default; an explicit choice is remembered.
@@ -32,7 +37,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`dark ${anton.variable} ${spaceGrotesk.variable} ${jetbrains.variable}`}
+      className={`dark ${serif.variable} ${sans.variable}`}
       suppressHydrationWarning
     >
       <head>
