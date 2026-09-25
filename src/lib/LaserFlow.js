@@ -620,7 +620,13 @@ export default class LaserFlow {
       false,
     );
 
-    this.animate();
+    // Compile shader programs asynchronously so the first frame never blocks the main thread.
+    const start = () => !this.destroyed && this.animate();
+    if (typeof this.renderer.compileAsync === "function" && this.renderer.extensions.has("KHR_parallel_shader_compile")) {
+      this.renderer.compileAsync(this.scene, this.camera).then(start, start);
+    } else {
+      start();
+    }
   }
 
   applyUniformOptions() {
@@ -672,6 +678,7 @@ export default class LaserFlow {
   }
 
   destroy() {
+    this.destroyed = true;
     cancelAnimationFrame(this.raf);
     cancelAnimationFrame(this.resizeRaf);
 

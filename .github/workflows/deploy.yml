@@ -27,6 +27,9 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+        env:
+          # Optional: a JSON form endpoint (e.g. Formspree). Unset → the contact form opens a pre-filled email.
+          NEXT_PUBLIC_FORM_ENDPOINT: ${{ vars.NEXT_PUBLIC_FORM_ENDPOINT }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -27,7 +27,8 @@ export default class DotGridBackground {
     this.canvas.style.width = "100%";
     this.canvas.style.height = "100%";
     this.canvas.style.pointerEvents = "none";
-    this.canvas.style.zIndex = "0";
+    this.canvas.style.zIndex = "1";
+    this.canvas.style.mixBlendMode = "screen";
     this.canvas.setAttribute("aria-hidden", "true");
 
     this.container.style.position = this.container.style.position || "relative";
@@ -51,6 +52,12 @@ export default class DotGridBackground {
   init() {
     this.resize();
     this.bindEvents();
+    // Only render while the container is on screen.
+    this.inView = true;
+    this.observer = new IntersectionObserver(([entry]) => {
+      this.inView = entry.isIntersecting;
+    });
+    this.observer.observe(this.container);
     this.animate();
   }
 
@@ -90,16 +97,13 @@ export default class DotGridBackground {
 
   buildGrid(width, height) {
     this.dots.length = 0;
+    this.live = new Set();
     const spacing = this.dotSpacing;
-
-    for (let y = 0; y <= height + spacing; y += spacing) {
-      for (let x = 0; x <= width + spacing; x += spacing) {
-        this.dots.push({
-          x,
-          y,
-          phase: Math.random() * Math.PI * 2,
-          influence: 0,
-        });
+    this.cols = Math.floor((width + spacing) / spacing) + 1;
+    this.rows = Math.floor((height + spacing) / spacing) + 1;
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        this.dots.push({ x: c * spacing, y: r * spacing, phase: Math.random() * Math.PI * 2, influence: 0 });
       }
     }
   }
@@ -127,81 +131,79 @@ export default class DotGridBackground {
 
   animate() {
     this.raf = requestAnimationFrame(this.animate);
-    if (document.hidden) return;
+    if (document.hidden || !this.inView) return;
     this.render();
   }
 
+  /**
+   * Only dots near the pointer (plus their fading trail) are touched each
+   * frame; with no pointer the canvas is cleared once and the frame skipped.
+   */
   render() {
     const ctx = this.ctx;
-    if (!ctx) return;
-
+    if (!ctx || !this.dots.length) return;
     const width = this.canvas.width / this.dpr;
     const height = this.canvas.height / this.dpr;
+    const { active, x: px, y: py } = this.pointer;
 
-    ctx.clearRect(0, 0, width, height);
-
-    if (!this.dots.length) return;
-
-    const pointerActive = this.pointer.active;
-    const px = this.pointer.x;
-    const py = this.pointer.y;
-    const influenceRadius = this.influenceRadius;
-    const maxDistSq = influenceRadius * influenceRadius;
-
-    const baseR = this.baseRadius;
-    const maxR = this.maxRadius;
-    const baseOpacity = this.baseOpacity;
-    const maxOpacity = this.maxOpacity;
-
-    const [r, g, b] = this.parseRGB(this.color);
-
-    const time = performance.now() * 0.001;
-
-    ctx.save();
-    ctx.fillStyle = "transparent";
-
-    for (let i = 0; i < this.dots.length; i++) {
-      const dot = this.dots[i];
-      let targetInfluence = 0;
-
-      if (pointerActive && px != null && py != null) {
-        const dx = dot.x - px;
-        const dy = dot.y - py;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < maxDistSq) {
-          const dist = Math.sqrt(distSq);
-          const t = 1 - dist / influenceRadius;
-          targetInfluence = t * t;
-        }
+    if (!active) {
+      if (this.dirty) {
+        ctx.clearRect(0, 0, width, height);
+        this.dirty = false;
+        for (const i of this.live) this.dots[i].influence = 0;
+        this.live.clear();
       }
-
-      const prevInfluence = dot.influence || 0;
-      const decay = 0.96; // smoother, longer trail
-      const grown = Math.max(targetInfluence, prevInfluence * decay);
-      dot.influence = grown;
-
-      const influence = dot.influence;
-
-      const idleWave = 0.12 + 0.07 * Math.sin(time * 0.5 + dot.phase);
-      const radius =
-        baseR + (maxR - baseR) * (influence * 0.9 + idleWave * 0.08);
-      const alphaBase = baseOpacity + idleWave * 0.0;
-      const glowStrength = influence * influence;
-      const alpha = Math.min(maxOpacity, maxOpacity * glowStrength);
-
-      // When there is no active pointer inside the hero, keep the grid fully transparent
-      if (!pointerActive || alpha <= 0.001) continue;
-
-      ctx.beginPath();
-      // Optimization: No shadows (extremely expensive). Just draw the dot with alpha.
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      // ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${alpha * 2.1})`;
-      // ctx.shadowBlur = 7 * (0.3 + glowStrength);
-      ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
-      ctx.fill();
+      return;
     }
 
-    ctx.restore();
+    ctx.clearRect(0, 0, width, height);
+    this.dirty = true;
+
+    const decay = 0.96;
+    for (const i of this.live) {
+      const dot = this.dots[i];
+      dot.influence *= decay;
+      if (dot.influence < 0.001) this.live.delete(i);
+    }
+
+    const s = this.dotSpacing;
+    const R = this.influenceRadius;
+    const c0 = Math.max(0, Math.floor((px - R) / s));
+    const c1 = Math.min(this.cols - 1, Math.ceil((px + R) / s));
+    const r0 = Math.max(0, Math.floor((py - R) / s));
+    const r1 = Math.min(this.rows - 1, Math.ceil((py + R) / s));
+    const maxDistSq = R * R;
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const i = r * this.cols + c;
+        const dot = this.dots[i];
+        const dx = dot.x - px;
+        const dy = dot.y - py;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= maxDistSq) continue;
+        const t = 1 - Math.sqrt(d2) / R;
+        const target = t * t;
+        if (target > dot.influence) dot.influence = target;
+        this.live.add(i);
+      }
+    }
+
+    if (!this.rgb) this.rgb = this.parseRGB(this.color);
+    const [cr, cg, cb] = this.rgb;
+    const time = performance.now() * 0.001;
+    const baseR = this.baseRadius;
+    const maxR = this.maxRadius;
+    for (const i of this.live) {
+      const dot = this.dots[i];
+      const inf = dot.influence;
+      const alpha = Math.min(this.maxOpacity, this.maxOpacity * inf * inf);
+      if (alpha <= 0.001) continue;
+      const idle = 0.12 + 0.07 * Math.sin(time * 0.5 + dot.phase);
+      ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, baseR + (maxR - baseR) * (inf * 0.9 + idle * 0.08), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   parseRGB(rgbStr) {
@@ -216,6 +218,7 @@ export default class DotGridBackground {
 
   destroy() {
     cancelAnimationFrame(this.raf);
+    this.observer?.disconnect();
     cancelAnimationFrame(this.resizeRaf);
 
     window.removeEventListener("resize", this.handleResize);
