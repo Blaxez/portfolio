@@ -13,7 +13,7 @@ import { getAssetPath } from "@/lib/assets";
  * - Renders only while visible; destroy() releases the GL context and listeners.
  */
 export class SkillsParticleSystem {
-  constructor(container, data) {
+  constructor(container, data, { color = "#ece6da", hot = "#ff5b22", bg = "#0b0a09" } = {}) {
     this.container = container;
     if (!this.container) throw new Error("Container not found");
     this.data = data;
@@ -26,7 +26,9 @@ export class SkillsParticleSystem {
       particleSize: isMobile ? 4.0 : 2.0,
       morphSpeed: 1.5,
       explosionForce: 0.5,
-      bgColor: "#050505",
+      bgColor: bg,
+      color,
+      hot,
       bloom: !isMobile,
       bloomStrength: 0.85,
       bloomRadius: 0.4,
@@ -158,6 +160,7 @@ export class SkillsParticleSystem {
         varying float vAlpha;
         varying float vDepth;
         varying float vHeat;
+        varying float vSpark;
 
         vec3 swirl(vec3 p) {
           return vec3(sin(p.y * 3.0 + uTime), cos(p.z * 3.0 + uTime), sin(p.x * 3.0 + uTime)) * 0.1;
@@ -179,10 +182,12 @@ export class SkillsParticleSystem {
           // Pointer repulsion in the logo plane.
           vec2 away = p.xy - uMouse.xy;
           float d = length(away);
-          float force = smoothstep(2.6, 0.0, d) * uMouseStrength;
+          float force = (1.0 - smoothstep(0.0, 2.6, d)) * uMouseStrength;
           p.xy += normalize(away + 0.0001) * force * 1.8;
           p.z += force * 1.4;
           vHeat = force;
+          // A few particles run hot all the time: sparks from the beam.
+          vSpark = step(0.972, aRandom);
 
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           gl_Position = projectionMatrix * mv;
@@ -195,10 +200,12 @@ export class SkillsParticleSystem {
       `,
       fragmentShader: /* glsl */ `
         uniform vec3 uColor;
+        uniform vec3 uHot;
         uniform float uBoost;
         varying float vAlpha;
         varying float vDepth;
         varying float vHeat;
+        varying float vSpark;
 
         void main() {
           vec2 uv = gl_PointCoord.xy - 0.5;
@@ -206,7 +213,7 @@ export class SkillsParticleSystem {
           if (r > 0.5) discard;
           float glow = pow(1.0 - r * 2.0, 2.0);
           float fog = clamp((40.0 - vDepth) / 30.0, 0.0, 1.0);
-          vec3 col = mix(uColor, vec3(1.0), vHeat * 0.6) * uBoost;
+          vec3 col = mix(uColor, uHot, max(vHeat * 0.9, vSpark * 0.95)) * uBoost;
           gl_FragColor = vec4(col, min(1.0, vAlpha * glow * fog * (uBoost * 0.5)));
         }
       `,
@@ -219,7 +226,8 @@ export class SkillsParticleSystem {
         uMouse: { value: new THREE.Vector3(999, 999, 0) },
         uMouseStrength: { value: 0 },
         uPixelRatio: { value: this.pixelRatio },
-        uColor: { value: new THREE.Color("#60a5fa") },
+        uColor: { value: new THREE.Color(this.config.color) },
+        uHot: { value: new THREE.Color(this.config.hot) },
         uBoost: { value: this.config.bloom ? 2.0 : 3.2 },
       },
       transparent: true,
@@ -305,7 +313,6 @@ export class SkillsParticleSystem {
     targetAttr.needsUpdate = true;
     activeAttr.needsUpdate = true;
 
-    this.material.uniforms.uColor.value.set(skill.color);
     this.currentSkill = index;
     this.isMorphing = true;
     this.morphTime = this.reduced ? 1 : 0;

@@ -5,9 +5,9 @@ import { SITE } from "@/lib/site";
 export const INTRO_DONE = "intro:done";
 
 /**
- * Brand intro curtain. Pure CSS so it runs before hydration, and the page
- * beneath is rendered (and painted) the whole time — it never blocks LCP.
- * Shown once per session; skipped for reduced motion.
+ * Intro: the laser cuts a line across the screen and the page opens along it.
+ * Pure CSS so it runs before hydration; the page beneath is painted the whole
+ * time, so it never holds back LCP. Once per session; skipped for reduced motion.
  */
 export default function Preloader() {
   useEffect(() => {
@@ -26,23 +26,24 @@ export default function Preloader() {
       done();
       return;
     }
-    const t = window.setTimeout(done, 1250);
+    const t = window.setTimeout(done, 1300);
     return () => window.clearTimeout(t);
   }, []);
 
   return (
     <div className="intro-curtain" aria-hidden="true">
-      <div className="intro-inner">
-        <span className="intro-mono">{SITE.monogram}</span>
-        <span className="intro-name">
-          {SITE.name.split("").map((ch, i) => (
-            <span key={i} style={{ animationDelay: `${0.15 + i * 0.03}s` }}>
-              {ch === " " ? " " : ch}
-            </span>
-          ))}
-        </span>
-        <span className="intro-bar" />
-      </div>
+      <div className="intro-half is-top" />
+      <div className="intro-half is-bottom" />
+      <span className="intro-name">
+        {SITE.name.split("").map((ch, i) => (
+          <span key={i} style={{ animationDelay: `${0.1 + i * 0.028}s` }}>
+            {ch}
+          </span>
+        ))}
+      </span>
+      <span className="intro-cut" />
+      <span className="intro-head beam-head" />
+      <span className="intro-meta">{SITE.location}</span>
     </div>
   );
 }

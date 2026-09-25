@@ -2,12 +2,13 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowUpRight, Download } from "lucide-react";
+import { ArrowUpRight, ArrowDown, Download } from "lucide-react";
 import DotGridBackground from "@/lib/DotGridBackground";
 import { getAssetPath } from "@/lib/assets";
 import { SITE } from "@/lib/site";
 import { prefersReducedMotion, scrollToTarget } from "@/lib/scroll";
 import { INTRO_DONE } from "./Preloader";
+import Rule from "./ui/Rule";
 import { afterFirstPaint } from "@/lib/idle";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -21,12 +22,28 @@ const lerpBySize = (min, max) => {
   return min + ((768 - width) / (768 - 320)) * (max - min);
 };
 
+/** Beam x as a fraction of the stage width from centre (LaserFlow's horizontalBeamOffset). */
+const beamHome = () => (window.innerWidth >= 1024 ? 0.16 : 0);
+/** On desktop the beam lands exactly on the hero's hairline rule; on phones it hits the bottom edge. */
+const beamFloor = (section) => {
+  const rule = section?.querySelector(".rule");
+  if (!rule || window.innerWidth < 1024) return -0.5;
+  const s = section.getBoundingClientRect();
+  return 0.5 - (rule.getBoundingClientRect().top - s.top) / s.height;
+};
+const beamRail = () => {
+  const rail = document.querySelector(".beam-rail");
+  if (!rail || getComputedStyle(rail).display === "none") return null;
+  return rail.getBoundingClientRect().left / window.innerWidth - 0.5;
+};
+
 export default function Hero() {
   const sectionRef = useRef(null);
   const laserRef = useRef(null);
   const contentRef = useRef(null);
   const mascotRef = useRef(null);
   const letterRef = useRef(null);
+  const laserApiRef = useRef(null);
 
   // WebGL laser (three.js loaded on demand, not in the initial bundle) + dot grid.
   useEffect(() => {
@@ -41,22 +58,27 @@ export default function Hero() {
       if (cancelled || !laserRef.current) return;
       laser = new LaserFlow({
         container: laserRef.current,
-        color: "#60a5fa",
-        horizontalBeamOffset: 0.0,
-        verticalBeamOffset: -0.5,
+        color: "#FF5B22",
+        horizontalBeamOffset: beamHome(),
+        verticalBeamOffset: beamFloor(sectionRef.current),
         verticalSizing: lerpBySize(3.0, 8.0),
         horizontalSizing: lerpBySize(1.4, 2.2),
-        fogIntensity: 0.65,
+        fogIntensity: mobile ? 0.7 : 0.9,
         wispDensity: mobile ? 0.25 : 0.4,
         flowStrength: 0.58,
         dpr: mobile ? 1 : undefined,
       });
+      laserApiRef.current = laser;
     });
 
     const onResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        laser?.update({ verticalSizing: lerpBySize(3.0, 8.0), horizontalSizing: lerpBySize(1.4, 2.2) });
+        laser?.update({
+          verticalSizing: lerpBySize(3.0, 8.0),
+          horizontalSizing: lerpBySize(1.4, 2.2),
+          verticalBeamOffset: window.scrollY < 10 ? beamFloor(sectionRef.current) : laser.options.verticalBeamOffset,
+        });
       }, 150);
     };
     window.addEventListener("resize", onResize);
@@ -70,8 +92,8 @@ export default function Hero() {
           maxRadius: 1,
           influenceRadius: 560,
           baseOpacity: 0.0,
-          maxOpacity: 0.8,
-          color: "rgba(96, 165, 250, 1)",
+          maxOpacity: 0.32,
+          color: "rgba(236, 230, 218, 1)",
         })
       : null;
 
@@ -81,6 +103,7 @@ export default function Hero() {
       clearTimeout(resizeTimeout);
       window.removeEventListener("resize", onResize);
       laser?.destroy();
+      laserApiRef.current = null;
       dotGrid?.destroy();
     };
   }, []);
@@ -159,16 +182,41 @@ export default function Hero() {
       return () => window.removeEventListener(INTRO_DONE, play);
     }, section);
 
-    // Scroll out (set up after first paint): the stage recedes, the name scales away, the mascot hops off.
+    // Scroll out (set up after first paint): the name recedes, the mascot hops off,
+    // and the laser slides into the margin where the page's beam rail picks it up.
     const cancelIdle = reduced
       ? () => {}
       : afterFirstPaint(() =>
           ctx.add(() => {
+            const beam = { p: 0 };
+            let from = beamHome();
+            let to = beamRail();
             gsap
-              .timeline({ scrollTrigger: { trigger: section, start: "top top", end: "bottom top", scrub: 0.6 } })
-              .to(laserRef.current, { scale: 1.15, opacity: 0.25, ease: "none" }, 0)
-              .to(contentRef.current, { yPercent: -18, opacity: 0, ease: "none" }, 0)
-              .to(".hero-name-mask", { scale: 0.92, ease: "none" }, 0)
+              .timeline({
+                scrollTrigger: {
+                  trigger: section,
+                  start: "top top",
+                  end: "bottom top",
+                  scrub: 0.6,
+                  onRefresh: () => {
+                    from = beamHome();
+                    to = beamRail();
+                  },
+                },
+              })
+              .to(
+                beam,
+                {
+                  p: 1,
+                  ease: "power2.inOut",
+                  onUpdate: () =>
+                    laserApiRef.current?.update({ horizontalBeamOffset: to === null ? from : from + (to - from) * beam.p }),
+                },
+                0,
+              )
+              .to(laserRef.current, { opacity: 0.35, ease: "none" }, 0)
+              .to(contentRef.current, { yPercent: -14, opacity: 0, ease: "none" }, 0)
+              .to(".hero-name-mask", { yPercent: -12, ease: "none", stagger: 0.04 }, 0)
               .fromTo(
                 mascot,
                 { yPercent: 0, rotate: 0 },
@@ -184,93 +232,110 @@ export default function Hero() {
   }, []);
 
   const secondary = SITE.cvPath
-    ? { label: "Download CV", href: getAssetPath(SITE.cvPath), icon: <Download size={16} />, download: true }
-    : { label: "View My Work", href: "#projects", icon: <ArrowUpRight size={16} />, target: "#projects" };
+    ? { label: "Download CV", href: getAssetPath(SITE.cvPath), icon: <Download size={16} className="btn-arrow" />, download: true }
+    : { label: "See the work", href: "#projects", icon: <ArrowDown size={16} className="btn-arrow" />, target: "#projects" };
 
   return (
     <section id="hero" ref={sectionRef} aria-labelledby="hero-title" className="hero-content stage-dark">
       <div id="laser-container" ref={laserRef} aria-hidden="true" />
-      <div ref={contentRef} className="hero-layout max-w-screen-container">
-        <div className="hero-layout-left">
+      <div ref={contentRef} className="hero-layout max-w-screen-container layout-padding">
+        <div className="relative">
           <div className="hero-mascot" ref={mascotRef} aria-hidden="true">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={getAssetPath("/assets/mascot-480.webp")}
               srcSet={`${getAssetPath("/assets/mascot-256.webp")} 256w, ${getAssetPath("/assets/mascot-480.webp")} 480w`}
-              sizes="(max-width: 768px) 130px, 240px"
+              sizes="(max-width: 768px) 110px, 220px"
               alt=""
-              width={240}
-              height={240}
+              width={220}
+              height={220}
               fetchPriority="high"
               className="w-full h-auto object-contain select-none"
               draggable={false}
             />
           </div>
-          <h1 id="hero-title" aria-label={SITE.name}>
-            <span className="hero-name-mask block pb-[0.06em]" aria-hidden="true">
-              <span className="hero-name-line block">
+          <h1 id="hero-title" className="display" aria-label={SITE.name}>
+            <span className="hero-name-mask block pb-[0.08em]" aria-hidden="true">
+              <span className="hero-name-line">
                 Santos
                 <span ref={letterRef} className="inline-block">
                   h
                 </span>
               </span>
             </span>
-            <span className="hero-name-mask block pb-[0.06em]" aria-hidden="true">
-              <span className="hero-name-line block">Maurya</span>
+            <span className="hero-name-mask block pb-[0.1em] pl-[0.55em] md:pl-[1.35em]" aria-hidden="true">
+              <em className="hero-name-line">Maurya</em>
             </span>
           </h1>
         </div>
-        <div className="hero-layout-right">
-          <p className="hero-role" data-hero-fade>
-            Full-Stack Developer · AI &amp; ML · Game Dev
-          </p>
-          <p className="hero-bio" data-hero-fade>
-            Four-plus years of hands-on work across full-stack web development, game development and applied AI/ML —
-            leading teams through rapid prototyping, architecting scalable web apps and designing intelligent systems.
-          </p>
-          <div className="cta-buttons" data-hero-fade>
-            <a
-              href="#contact"
-              className="btn btn-primary"
-              data-magnetic="0.3"
-              onClick={(e) => {
-                e.preventDefault();
-                scrollToTarget("#contact");
-              }}
-            >
-              Get in Touch <ArrowUpRight size={16} />
-            </a>
-            <a
-              href={secondary.href}
-              className="btn btn-ghost"
-              data-magnetic="0.3"
-              download={secondary.download || undefined}
-              onClick={
-                secondary.target
-                  ? (e) => {
-                      e.preventDefault();
-                      scrollToTarget(secondary.target);
-                    }
-                  : undefined
-              }
-            >
-              {secondary.label} {secondary.icon}
-            </a>
+
+        <div className="hero-scrim hero-meta pt-8 md:pt-10">
+          <Rule />
+          <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-6 lg:items-end">
+            <div className="lg:col-span-4 flex flex-col gap-3" data-hero-fade>
+              <p className="label">Full-stack developer</p>
+              <p className="label">Applied AI &amp; ML · Game dev</p>
+              <p className="label">{SITE.location}</p>
+            </div>
+            <div className="lg:col-span-3 flex flex-col gap-6" data-hero-fade>
+              <p className="label flex items-center gap-2.5 text-[var(--fg)]">
+                <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inset-0 rounded-full bg-[var(--beam)] motion-safe:animate-ping opacity-60" />
+                  <span className="relative h-1.5 w-1.5 rounded-full bg-[var(--beam)]" />
+                </span>
+                Open to freelance &amp; collaboration
+              </p>
+              <a
+                href="#about"
+                className="scroll-cue label hidden lg:inline-flex"
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToTarget("#about");
+                }}
+                aria-label="Scroll to About"
+              >
+                <span className="scroll-cue-line" aria-hidden="true" />
+                <span aria-hidden="true">Scroll</span>
+              </a>
+            </div>
+            <div className="lg:col-span-5 flex flex-col gap-7">
+              <p className="hero-bio" data-hero-fade>
+                I&apos;ve spent four-plus years building for the web, for games and with machine learning — usually leading a
+                small team from a rough prototype to something people can actually use.
+              </p>
+              <div className="flex flex-wrap gap-3" data-hero-fade>
+                <a
+                  href="#contact"
+                  className="btn btn-solid"
+                  data-magnetic="0.25"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    scrollToTarget("#contact");
+                  }}
+                >
+                  Get in touch <ArrowUpRight size={16} className="btn-arrow" />
+                </a>
+                <a
+                  href={secondary.href}
+                  className="btn btn-line"
+                  data-magnetic="0.25"
+                  download={secondary.download || undefined}
+                  onClick={
+                    secondary.target
+                      ? (e) => {
+                          e.preventDefault();
+                          scrollToTarget(secondary.target);
+                        }
+                      : undefined
+                  }
+                >
+                  {secondary.label} {secondary.icon}
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <a
-        href="#about"
-        className="scroll-cue"
-        onClick={(e) => {
-          e.preventDefault();
-          scrollToTarget("#about");
-        }}
-        aria-label="Scroll to About"
-      >
-        <span aria-hidden="true">Scroll</span>
-        <span className="scroll-cue-line" aria-hidden="true" />
-      </a>
     </section>
   );
 }
