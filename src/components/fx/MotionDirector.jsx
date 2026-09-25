@@ -10,8 +10,7 @@ gsap.registerPlugin(ScrollTrigger, SplitText);
 
 /**
  * Declarative scroll choreography. Markup opts in with data attributes:
- *   data-split            title lines rise out of masks on enter
- *   data-rule             the beam draws a hairline rule (see ui/Rule)
+ *   data-split            title words rise out of line masks on enter
  *   data-reveal="up"      fade/rise on enter (batched)
  *   data-scrub-words      words light up as you read (scrubbed)
  *   data-parallax="0.3"   drifts against the scroll
@@ -29,32 +28,32 @@ export default function MotionDirector() {
       if (cancelled) return;
       ctx = gsap.context(() => {
         gsap.utils.toArray("[data-split]").forEach((el) => {
+          // Words rise out of line masks; at rest the masks open up so
+          // descenders and overhangs are never cut.
+          const release = (self) => (self.masks || [...el.children]).forEach((m) => (m.style.overflow = "visible"));
           SplitText.create(el, {
-            type: "lines",
+            type: "lines,words",
             mask: "lines",
             autoSplit: true,
-            onSplit: (self) =>
-              gsap.from(self.lines, {
-                yPercent: 105,
-                duration: 1.25,
+            onSplit: (self) => {
+              if (el.dataset.revealed) {
+                release(self);
+                return;
+              }
+              return gsap.from(self.words, {
+                yPercent: 118,
+                rotate: 3,
+                duration: 1.1,
                 ease: "expo.out",
-                stagger: 0.09,
+                stagger: 0.045,
                 scrollTrigger: { trigger: el, start: "top 88%", once: true },
-              }),
+                onComplete: () => {
+                  el.dataset.revealed = "1";
+                  release(self);
+                },
+              });
+            },
           });
-        });
-
-        gsap.utils.toArray("[data-rule]").forEach((el) => {
-          const fill = el.querySelector(".rule-fill");
-          const head = el.querySelector(".beam-head");
-          gsap
-            .timeline({ scrollTrigger: { trigger: el, start: "top 90%", once: true } })
-            .set(fill, { opacity: 1 })
-            .fromTo(fill, { scaleX: 0 }, { scaleX: 1, duration: 1.6, ease: "power2.inOut" }, 0)
-            // Transform, not left: the head's glow must never register as a layout shift.
-            .fromTo(head, { x: 0, opacity: 1 }, { x: () => el.offsetWidth, duration: 1.6, ease: "power2.inOut" }, 0)
-            .to(head, { opacity: 0, duration: 0.3 }, 1.45)
-            .to(fill, { opacity: 0, duration: 1.6, ease: "power1.out" }, 1.6);
         });
 
         ScrollTrigger.batch("[data-reveal='up']", {
