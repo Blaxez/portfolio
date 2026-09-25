@@ -1,217 +1,276 @@
-import React, { useEffect, useRef } from 'react';
-import Image from 'next/image';
-import gsap from 'gsap';
-import LaserFlow from '@/lib/LaserFlow';
-import DotGridBackground from '@/lib/DotGridBackground';
-import { getAssetPath } from '@/lib/assets';
+"use client";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ArrowUpRight, Download } from "lucide-react";
+import DotGridBackground from "@/lib/DotGridBackground";
+import { getAssetPath } from "@/lib/assets";
+import { SITE } from "@/lib/site";
+import { prefersReducedMotion, scrollToTarget } from "@/lib/scroll";
+import { INTRO_DONE } from "./Preloader";
+import { afterFirstPaint } from "@/lib/idle";
+
+gsap.registerPlugin(ScrollTrigger);
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+const lerpBySize = (min, max) => {
+  const width = window.innerWidth || 1024;
+  if (width >= 768) return min;
+  if (width <= 320) return max;
+  return min + ((768 - width) / (768 - 320)) * (max - min);
+};
 
 export default function Hero() {
-  const containerRef = useRef(null);
-  const heroRef = useRef(null);
+  const sectionRef = useRef(null);
+  const laserRef = useRef(null);
+  const contentRef = useRef(null);
+  const mascotRef = useRef(null);
+  const letterRef = useRef(null);
 
+  // WebGL laser (three.js loaded on demand, not in the initial bundle) + dot grid.
   useEffect(() => {
-    if (!containerRef.current || !heroRef.current) return;
+    let laser;
+    let cancelled = false;
+    let resizeTimeout;
+    const mobile = window.innerWidth < 768;
 
-    const getVerticalSizing = () => {
-      if (typeof window === 'undefined') return 3.0;
-      const width = window.innerWidth || document.documentElement.clientWidth || 0;
-      const minSize = 3.0;
-      const maxSize = 8.0;
-      const minWidth = 768;
-      const maxWidth = 320;
-
-      if (width >= minWidth) return minSize;
-      if (width <= maxWidth) return maxSize;
-
-      const t = (minWidth - width) / (minWidth - maxWidth);
-      return minSize + t * (maxSize - minSize);
-    };
-
-    const getHorizontalSizing = () => {
-        if (typeof window === 'undefined') return 1.4;
-      const width = window.innerWidth || document.documentElement.clientWidth || 0;
-      const minSize = 1.4;
-      const maxSize = 2.2;
-      const minWidth = 768;
-      const maxWidth = 320;
-
-      if (width >= minWidth) return minSize;
-      if (width <= maxWidth) return maxSize;
-
-      const t = (minWidth - width) / (minWidth - maxWidth);
-      return minSize + t * (maxSize - minSize);
-    };
-
-    let laserFlow = new LaserFlow({
-      container: containerRef.current,
-      color: "#60a5fa",
-      horizontalBeamOffset: 0.0,
-      verticalBeamOffset: -0.5,
-      verticalSizing: getVerticalSizing(),
-      horizontalSizing: getHorizontalSizing(),
-      fogIntensity: 0.65,
-      wispDensity: 0.4,
-      flowStrength: 0.58,
+    // Decorative WebGL starts after the headline has painted and the main thread is idle.
+    const cancelIdle = afterFirstPaint(async () => {
+      const { default: LaserFlow } = await import("@/lib/LaserFlow");
+      if (cancelled || !laserRef.current) return;
+      laser = new LaserFlow({
+        container: laserRef.current,
+        color: "#60a5fa",
+        horizontalBeamOffset: 0.0,
+        verticalBeamOffset: -0.5,
+        verticalSizing: lerpBySize(3.0, 8.0),
+        horizontalSizing: lerpBySize(1.4, 2.2),
+        fogIntensity: 0.65,
+        wispDensity: mobile ? 0.25 : 0.4,
+        flowStrength: 0.58,
+        dpr: mobile ? 1 : undefined,
+      });
     });
 
-    let resizeTimeout;
-    const handleResize = () => {
-        if (!laserFlow) return;
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-          const nextV = getVerticalSizing();
-          const nextH = getHorizontalSizing();
-          if (typeof laserFlow.update === "function") {
-            laserFlow.update({
-              verticalSizing: nextV,
-              horizontalSizing: nextH,
-            });
-          }
-        }, 100);
-      };
-      
-    window.addEventListener("resize", handleResize);
+    const onResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        laser?.update({ verticalSizing: lerpBySize(3.0, 8.0), horizontalSizing: lerpBySize(1.4, 2.2) });
+      }, 150);
+    };
+    window.addEventListener("resize", onResize);
 
-    // Dot Grid
-    let dotGrid;
-    if (heroRef.current) {
-        dotGrid = new DotGridBackground({
-          container: heroRef.current,
+    // Cursor-reactive dots only make sense with a hovering pointer.
+    const dotGrid = sectionRef.current && window.matchMedia("(pointer: fine)").matches
+      ? new DotGridBackground({
+          container: sectionRef.current,
           dotSpacing: 8,
           baseRadius: 0.6,
           maxRadius: 1,
           influenceRadius: 560,
           baseOpacity: 0.0,
           maxOpacity: 0.8,
-          color: "rgba(96, 165, 250, 1)", // matches #60a5fa
-        });
-    }
+          color: "rgba(96, 165, 250, 1)",
+        })
+      : null;
 
     return () => {
-        window.removeEventListener("resize", handleResize);
-        if (laserFlow) laserFlow.destroy();
-        if (dotGrid) dotGrid.destroy();
+      cancelled = true;
+      cancelIdle();
+      clearTimeout(resizeTimeout);
+      window.removeEventListener("resize", onResize);
+      laser?.destroy();
+      dotGrid?.destroy();
     };
   }, []);
 
-  const mascotRef = useRef(null);
-  const letterRef = useRef(null);
+  // Seat the mascot on the "h" of "Santosh"; it stays invisible until placed.
+  useIsomorphicLayoutEffect(() => {
+    const mascot = mascotRef.current;
+    const letter = letterRef.current;
+    if (!mascot || !letter) return;
 
-      const getLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+    // Layout offsets, not getBoundingClientRect: the name lines are translated
+    // during the intro and the mascot must be seated on the final position.
+    const place = () => {
+      const parent = mascot.offsetParent;
+      if (!parent) return;
+      let x = 0;
+      let y = 0;
+      for (let el = letter; el && el !== parent; el = el.offsetParent) {
+        x += el.offsetLeft;
+        y += el.offsetTop;
+      }
+      const letterSpacing = parseFloat(window.getComputedStyle(letter).letterSpacing) || 0;
+      const w = mascot.offsetWidth;
+      const h = mascot.offsetHeight;
+      gsap.set(mascot, {
+        left: x + letter.offsetWidth - letterSpacing * 2 - w * 0.65,
+        top: y - h + h * 0.27,
+        transformOrigin: "65% 88%",
+      });
+    };
 
-      getLayoutEffect(() => {
-          const updateMascotPosition = () => {
-          const mascot = mascotRef.current;
-          const letter = letterRef.current;
-          if (!mascot || !letter) return;
-
-          // Get rectangles
-          const letterRect = letter.getBoundingClientRect();
-          const mascotRect = mascot.getBoundingClientRect();
-          
-          // Calculate position relative to the offsetParent (.hero-layout-left)
-          const parent = mascot.offsetParent;
-          if (!parent) return;
-          const parentRect = parent.getBoundingClientRect();
-
-          // Calculate relative coordinates
-          const relativeLeft = letterRect.left - parentRect.left;
-          const relativeTop = letterRect.top - parentRect.top;
-
-          // Account for letter-spacing in the Right Edge calculation
-          const computedStyle = window.getComputedStyle(letter);
-          const letterSpacing = parseFloat(computedStyle.letterSpacing) || 0;
-
-          // GSAP Positioning
-          // Anchor: Top-Right edge of 'H' (minus spacing)
-          // Mascot "Sit Point" is at X: 65% (width), Y: 88% (height due to 12% overlap)
-          // Update: Increased sit depth to 22% (0.22) to account for square PNG whitespace
-          
-          const overlapY = mascotRect.height * 0.27; 
-          // We want the Right Edge of the GLYPH, not the box (which has spacing)
-          const anchorX = relativeLeft + letterRect.width - letterSpacing * 2; 
-          
-          gsap.set(mascot, {
-              left: anchorX - (mascotRect.width * 0.65),
-              top: relativeTop - mascotRect.height + overlapY,
-              scale: 1,
-              transformOrigin: "65% 88%",
-              overwrite: "auto" // Ensure no conflict
-          });
-      };
-
-      // Initial update
-      const timeoutId = setTimeout(updateMascotPosition, 100);
-
-      // Listeners
-      window.addEventListener('resize', updateMascotPosition);
-      
-      const resizeObserver = new ResizeObserver(updateMascotPosition);
-      if (containerRef.current) resizeObserver.observe(containerRef.current);
-      if (mascotRef.current) resizeObserver.observe(mascotRef.current);
-
-      return () => {
-          window.removeEventListener('resize', updateMascotPosition);
-          resizeObserver.disconnect();
-          clearTimeout(timeoutId);
-      };
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(mascot);
+    ro.observe(letter);
+    window.addEventListener("resize", place);
+    document.fonts?.ready.then(place);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", place);
+    };
   }, []);
 
-    // ... existing scroll logic ...
-    const scrollToContact = () => {
-      const contact = document.getElementById('contact');
-      if (contact) contact.scrollIntoView({ behavior: 'smooth' });
+  // Intro + scroll choreography.
+  useEffect(() => {
+    const reduced = prefersReducedMotion();
+    const section = sectionRef.current;
+    const mascot = mascotRef.current;
+    const ctx = gsap.context(() => {
+      const lines = gsap.utils.toArray(".hero-name-line");
+      const fades = gsap.utils.toArray("[data-hero-fade]");
+
+      if (reduced) {
+        gsap.set(mascot, { opacity: 1 });
+        return;
+      }
+
+      const curtain = !window.__introDone && !document.documentElement.classList.contains("intro-seen");
+      if (curtain) {
+        // Offset (never hidden) while the curtain covers the page, so the
+        // text is painted at first paint and LCP isn't held back by the intro.
+        gsap.set(lines, { yPercent: 55, scale: 1.06, filter: "blur(10px)" });
+        gsap.set(fades, { y: 28 });
+      }
+      gsap.set(mascot, { y: -window.innerHeight * 0.6, rotate: -25, opacity: 1 });
+
+      const intro = gsap.timeline({ paused: true, defaults: { ease: "expo.out" } });
+      if (curtain) intro.to(lines, { yPercent: 0, scale: 1, filter: "blur(0px)", duration: 1.3, stagger: 0.12 }, 0);
+      intro.to(mascot, { y: 0, rotate: 0, duration: 1.1, ease: "bounce.out" }, curtain ? 0.45 : 0);
+      if (curtain) intro.to(fades, { y: 0, duration: 1, stagger: 0.09 }, 0.35);
+
+      const play = () => intro.play();
+      if (window.__introDone || !curtain) play();
+      else window.addEventListener(INTRO_DONE, play, { once: true });
+
+      return () => window.removeEventListener(INTRO_DONE, play);
+    }, section);
+
+    // Scroll out (set up after first paint): the stage recedes, the name scales away, the mascot hops off.
+    const cancelIdle = reduced
+      ? () => {}
+      : afterFirstPaint(() =>
+          ctx.add(() => {
+            gsap
+              .timeline({ scrollTrigger: { trigger: section, start: "top top", end: "bottom top", scrub: 0.6 } })
+              .to(laserRef.current, { scale: 1.15, opacity: 0.25, ease: "none" }, 0)
+              .to(contentRef.current, { yPercent: -18, opacity: 0, ease: "none" }, 0)
+              .to(".hero-name-mask", { scale: 0.92, ease: "none" }, 0)
+              .fromTo(
+                mascot,
+                { yPercent: 0, rotate: 0 },
+                { yPercent: -160, rotate: 18, ease: "power1.in", immediateRender: false },
+                0,
+              );
+          }),
+        );
+    return () => {
+      cancelIdle();
+      ctx.revert();
     };
-  
-    return (
-      <div className="hero-content" id="hero" ref={heroRef}>
-        <div id="laser-container" ref={containerRef}></div>
-        <div className="hero-layout">
-          <div className="hero-layout-left">
-            <div className="hero-mascot" ref={mascotRef}>
-                <Image 
-                  src={getAssetPath("/assets/mascott-v2.png")} 
-                  alt="Mascot" 
-                  width={420} 
-                  height={420} 
-                  priority
-                  className="object-contain"
-                  onLoad={(e) => {
-                      // Trigger update when loaded
-                      const target = e.target;
-                      if(target) target.dispatchEvent(new Event('resize')); 
-                  }}
-                />
-            </div>
-            <h1>
-                Santos<span ref={letterRef} style={{ display: 'inline-block' }}>h</span> Maurya
-            </h1>
+  }, []);
+
+  const secondary = SITE.cvPath
+    ? { label: "Download CV", href: getAssetPath(SITE.cvPath), icon: <Download size={16} />, download: true }
+    : { label: "View My Work", href: "#projects", icon: <ArrowUpRight size={16} />, target: "#projects" };
+
+  return (
+    <section id="hero" ref={sectionRef} aria-labelledby="hero-title" className="hero-content stage-dark">
+      <div id="laser-container" ref={laserRef} aria-hidden="true" />
+      <div ref={contentRef} className="hero-layout max-w-screen-container">
+        <div className="hero-layout-left">
+          <div className="hero-mascot" ref={mascotRef} aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={getAssetPath("/assets/mascot-480.webp")}
+              srcSet={`${getAssetPath("/assets/mascot-256.webp")} 256w, ${getAssetPath("/assets/mascot-480.webp")} 480w`}
+              sizes="(max-width: 768px) 130px, 240px"
+              alt=""
+              width={240}
+              height={240}
+              fetchPriority="high"
+              className="w-full h-auto object-contain select-none"
+              draggable={false}
+            />
           </div>
-          <div className="hero-layout-right">
-            <p>
-              Full‑Stack Developer | AI &amp; ML Innovator | Game Developer. A
-            seasoned computer science professional with over four years of
-            hands‑on experience in full‑stack web development, game development,
-            and applied AI/ML. Adept at leading teams through rapid prototyping
-            cycles, architecting scalable web applications, and designing
-            intelligent systems.
+          <h1 id="hero-title" aria-label={SITE.name}>
+            <span className="hero-name-mask block pb-[0.06em]" aria-hidden="true">
+              <span className="hero-name-line block">
+                Santos
+                <span ref={letterRef} className="inline-block">
+                  h
+                </span>
+              </span>
+            </span>
+            <span className="hero-name-mask block pb-[0.06em]" aria-hidden="true">
+              <span className="hero-name-line block">Maurya</span>
+            </span>
+          </h1>
+        </div>
+        <div className="hero-layout-right">
+          <p className="hero-role" data-hero-fade>
+            Full-Stack Developer · AI &amp; ML · Game Dev
           </p>
-          <div className="cta-buttons">
-            <button className="btn btn-primary" type="button">
-              <span className="btn-primary-inner-glow"></span>
-              <span className="btn-primary-surface"></span>
-              <span className="btn-label">Get in Touch</span>
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={scrollToContact}
-              type="button"
+          <p className="hero-bio" data-hero-fade>
+            Four-plus years of hands-on work across full-stack web development, game development and applied AI/ML —
+            leading teams through rapid prototyping, architecting scalable web apps and designing intelligent systems.
+          </p>
+          <div className="cta-buttons" data-hero-fade>
+            <a
+              href="#contact"
+              className="btn btn-primary"
+              data-magnetic="0.3"
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToTarget("#contact");
+              }}
             >
-              <span className="btn-label">Download CV</span>
-            </button>
+              Get in Touch <ArrowUpRight size={16} />
+            </a>
+            <a
+              href={secondary.href}
+              className="btn btn-ghost"
+              data-magnetic="0.3"
+              download={secondary.download || undefined}
+              onClick={
+                secondary.target
+                  ? (e) => {
+                      e.preventDefault();
+                      scrollToTarget(secondary.target);
+                    }
+                  : undefined
+              }
+            >
+              {secondary.label} {secondary.icon}
+            </a>
           </div>
         </div>
       </div>
-    </div>
+      <a
+        href="#about"
+        className="scroll-cue"
+        onClick={(e) => {
+          e.preventDefault();
+          scrollToTarget("#about");
+        }}
+        aria-label="Scroll to About"
+      >
+        <span aria-hidden="true">Scroll</span>
+        <span className="scroll-cue-line" aria-hidden="true" />
+      </a>
+    </section>
   );
 }

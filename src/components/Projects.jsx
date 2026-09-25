@@ -1,205 +1,333 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { motion, useScroll, useSpring, useTransform } from "framer-motion";
-import { ArrowUpRight, ExternalLink, Github, ChevronsDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ArrowUpRight, ExternalLink, Github, Star } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
+import { GITHUB_USERS } from "@/services/githubService";
+import SectionHeading from "./ui/SectionHeading";
+import { prefersReducedMotion } from "@/lib/scroll";
 
-const ServiceCard = ({ service, i, progress, active, onClick }) => {
-  const offset = Math.max(-10, Math.min(10, ((i % 5) - 2) * 5));
-  const parallax = useTransform(progress, [0, 1], ["0%", `${offset}%`]);
+gsap.registerPlugin(ScrollTrigger);
 
-  return (
-    <motion.div
-      className="relative h-[50vh] md:h-[60vh] w-[80vw] md:w-[45vw] flex-shrink-0 group cursor-pointer"
-      whileHover={{ scale: 0.98 }}
-      onClick={onClick}
-      transition={{ duration: 0.4 }}
-    >
-      <div className="w-full h-full bg-white dark:bg-black relative overflow-hidden rounded-sm border-l border-[var(--border)]">
-        <motion.div className="absolute inset-0 w-[120%] h-full -left-[10%]" style={{ x: parallax }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={service.img}
-            alt={service.title}
-            className={`w-full h-full object-cover transition-opacity duration-500 ${
-              active ? "opacity-80 grayscale-0" : "opacity-60 grayscale group-hover:opacity-80 group-hover:grayscale-0"
-            }`}
-          />
-        </motion.div>
-        <div className={`absolute inset-0 flex flex-col justify-end p-5 md:p-8 lg:p-12 z-10 bg-gradient-to-t transition-all duration-500 ${
-          active ? "from-black/90" : "from-white/90 dark:from-black/80 group-hover:from-black/90"
-        } to-transparent`}>
-          <div className="overflow-hidden">
-            <h3 className={`text-[8vw] md:text-[5vw] font-black uppercase leading-[0.85] tracking-tighter transition-all duration-500 ${
-              active ? "text-white translate-y-0" : "text-[var(--fg)] group-hover:text-white transform translate-y-4 group-hover:translate-y-0"
-            }`}>
-              {service.title}
-            </h3>
-          </div>
-          <div className={`flex justify-between items-end mt-3 md:mt-4 border-t pt-3 md:pt-4 transition-colors duration-500 ${
-            active ? "border-white/20" : "border-[var(--fg)]/20 group-hover:border-white/20"
-          }`}>
-            <span className="font-mono text-xs md:text-sm text-[var(--acc)]">{service.cat}</span>
-            <div className={`flex items-center gap-3 font-mono text-[10px] md:text-xs uppercase transition-colors duration-500 ${
-              active ? "text-white/60" : "text-[var(--fg)]/60 group-hover:text-white/60"
-            }`}>
-              {service.repoUrl && (
-                <a href={service.repoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="pointer-events-auto hover:text-[var(--acc)] transition-colors" title="View Source">
-                  <Github size={14} />
-                </a>
-              )}
-              {service.liveUrl && (
-                <a href={service.liveUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="pointer-events-auto hover:text-[var(--acc)] transition-colors" title="Live Demo">
-                  <ExternalLink size={14} />
-                </a>
-              )}
-              <span>Details</span>
-              <ArrowUpRight size={12} />
-            </div>
-          </div>
-        </div>
-      </div>
-      <span className="absolute -top-8 md:-top-12 -left-2 text-[5rem] md:text-[8rem] font-black text-[var(--fg)] opacity-[0.03] pointer-events-none select-none z-0">
-        0{i + 1}
-      </span>
-    </motion.div>
-  );
+const LANG_COLORS = {
+  JavaScript: "#f1e05a",
+  TypeScript: "#3178c6",
+  Python: "#3572A5",
+  "C++": "#f34b7d",
+  "C#": "#178600",
+  C: "#555555",
+  Java: "#b07219",
+  Go: "#00ADD8",
+  HTML: "#e34c26",
+  CSS: "#563d7c",
+  "Jupyter Notebook": "#DA5B0B",
+  Shell: "#89e051",
+  Kotlin: "#A97BFF",
+  Dart: "#00B4AB",
+  GLSL: "#5686a5",
 };
 
+const CARD_WIDTH = "w-[82vw] sm:w-[60vw] md:w-[46vw] lg:w-[36vw] xl:w-[30vw]";
+
+function tilt(e) {
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  const y = (e.clientY - r.top) / r.height;
+  el.style.setProperty("--ry", `${(x - 0.5) * 10}deg`);
+  el.style.setProperty("--rx", `${(0.5 - y) * 8}deg`);
+  el.style.setProperty("--gx", `${x * 100}%`);
+  el.style.setProperty("--gy", `${y * 100}%`);
+}
+function untilt(e) {
+  const el = e.currentTarget;
+  el.style.setProperty("--ry", "0deg");
+  el.style.setProperty("--rx", "0deg");
+}
+
+function ProjectCard({ project, index }) {
+  const color = LANG_COLORS[project.language] || "var(--acc)";
+  return (
+    <article className={`project-card relative flex-shrink-0 snap-center ${CARD_WIDTH}`} aria-labelledby={`project-${project.id}`}>
+      <div
+        className="project-tilt spotlight group relative h-full flex flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden"
+        onPointerMove={tilt}
+        onPointerLeave={untilt}
+        data-cursor-label="View"
+      >
+        <div className="relative aspect-[2/1] overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(var(--acc-rgb),0.35),transparent_60%),linear-gradient(135deg,#0f172a,#1e1b4b)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={project.image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="project-img absolute inset-0 h-full w-[116%] max-w-none -left-[8%] object-cover transition-[filter,transform] duration-700 group-hover:scale-105"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-transparent" />
+          <span className="absolute top-4 left-4 rounded-full bg-black/60 backdrop-blur px-3 py-1 font-mono text-[11px] tracking-widest text-white">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+        </div>
+
+        <div className="relative flex flex-1 flex-col gap-4 p-6 md:p-8">
+          <div className="flex items-center gap-4 font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+              {project.language || "Code"}
+            </span>
+            {project.stars > 0 ? (
+              <span className="flex items-center gap-1" aria-label={`${project.stars} stars`}>
+                <Star size={12} aria-hidden="true" /> {project.stars}
+              </span>
+            ) : null}
+          </div>
+          <h3 id={`project-${project.id}`} className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-[1.05] text-[var(--fg)]">
+            <a
+              href={project.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none group-focus-within:underline decoration-[var(--acc)] underline-offset-4"
+            >
+              {project.title}
+              <span className="sr-only"> — view source on GitHub (opens in a new tab)</span>
+            </a>
+          </h3>
+          <p className="text-sm md:text-base text-[var(--muted)] leading-relaxed line-clamp-3">
+            {project.description || "Source code and notes on GitHub."}
+          </p>
+          {project.topics?.length ? (
+            <ul className="flex flex-wrap gap-2" aria-label="Topics">
+              {project.topics.map((t) => (
+                <li key={t} className="rounded-full border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="relative z-10 mt-auto flex items-center justify-between gap-3 pt-2">
+            <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-[var(--fg)]" aria-hidden="true">
+              <Github size={14} /> Source <ArrowUpRight size={12} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </span>
+            {project.liveUrl ? (
+              <a
+                href={project.liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary !min-h-10 !py-2 !px-4 text-xs"
+                data-cursor-label="Live"
+              >
+                Live demo <ExternalLink size={14} />
+                <span className="sr-only"> for {project.title} (opens in a new tab)</span>
+              </a>
+            ) : null}
+          </div>
+        </div>
+        <div aria-hidden="true" className="project-glare pointer-events-none absolute inset-0" />
+      </div>
+    </article>
+  );
+}
+
+function MoreCard({ message }) {
+  return (
+    <article className={`project-card relative flex-shrink-0 snap-center ${CARD_WIDTH}`}>
+      <div className="h-full min-h-[420px] rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)]/50 p-8 flex flex-col justify-between">
+        <div>
+          <p className="eyebrow">Keep exploring</p>
+          <p className="mt-4 text-3xl md:text-4xl font-black uppercase tracking-tight text-[var(--fg)]">
+            {message || "Everything else lives on GitHub."}
+          </p>
+        </div>
+        <ul className="flex flex-col gap-3">
+          {GITHUB_USERS.map((u) => (
+            <li key={u}>
+              <a
+                href={`https://github.com/${u}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-ghost w-full justify-between"
+                data-magnetic="0.15"
+              >
+                <span className="flex items-center gap-2">
+                  <Github size={16} /> @{u}
+                </span>
+                <ArrowUpRight size={16} />
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </article>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div className={`flex-shrink-0 ${CARD_WIDTH}`} aria-hidden="true">
+      <div className="h-full min-h-[420px] rounded-3xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden animate-pulse">
+        <div className="aspect-[2/1] bg-[var(--border)]" />
+        <div className="p-8 space-y-4">
+          <div className="h-3 w-24 rounded bg-[var(--border)]" />
+          <div className="h-7 w-3/4 rounded bg-[var(--border)]" />
+          <div className="h-3 w-full rounded bg-[var(--border)]" />
+          <div className="h-3 w-2/3 rounded bg-[var(--border)]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Projects() {
-  const targetRef = useRef(null);
-  const [activeCard, setActiveCard] = useState(null);
-  const { scrollYProgress } = useScroll({ target: targetRef });
-
-  const smoothProgress = useSpring(scrollYProgress, {
-    mass: 0.1, damping: 15, stiffness: 100, restDelta: 0.001,
-  });
-
   const { projects, loading, error } = useProjects();
+  const sectionRef = useRef(null);
+  const trackRef = useRef(null);
+  const barRef = useRef(null);
+  const [mode, setMode] = useState("swipe");
+  const [height, setHeight] = useState(null);
+  const [current, setCurrent] = useState(1);
 
-  const contentRef = useRef(null);
-  const [scrollRange, setScrollRange] = useState(0);
-
+  // Pinned horizontal gallery on wide screens with motion; native swipe otherwise.
   useEffect(() => {
-    const calculateWidth = () => {
-      if (contentRef.current) {
-        const range = contentRef.current.scrollWidth - window.innerWidth;
-        setScrollRange(range > 0 ? range : 0);
-      }
-    };
-    calculateWidth();
-    window.addEventListener("resize", calculateWidth);
-    return () => window.removeEventListener("resize", calculateWidth);
-  }, [projects]);
-
-  const x = useTransform(smoothProgress, [0, 1], [0, -scrollRange]);
-
-  // Touch-swipe support: convert horizontal swipes into vertical scroll
-  // so the existing scroll-driven horizontal animation works on mobile
-  const stickyRef = useRef(null);
-  const touchState = useRef({ startX: 0, startY: 0, isHorizontal: null });
-
-  useEffect(() => {
-    const el = stickyRef.current;
-    if (!el) return;
-
-    const onTouchStart = (e) => {
-      const t = e.touches[0];
-      touchState.current = { startX: t.clientX, startY: t.clientY, isHorizontal: null };
-    };
-
-    const onTouchMove = (e) => {
-      const t = e.touches[0];
-      const dx = t.clientX - touchState.current.startX;
-      const dy = t.clientY - touchState.current.startY;
-
-      // Determine swipe direction on first significant movement
-      if (touchState.current.isHorizontal === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
-        touchState.current.isHorizontal = Math.abs(dx) > Math.abs(dy);
-      }
-
-      if (touchState.current.isHorizontal) {
-        e.preventDefault();
-        // Convert horizontal swipe into vertical scroll (multiplied for natural feel)
-        window.scrollBy(0, -dx * 1.5);
-        touchState.current.startX = t.clientX;
-        touchState.current.startY = t.clientY;
-      }
-    };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-    };
+    const mq = window.matchMedia("(min-width: 768px)");
+    const decide = () => setMode(mq.matches && !prefersReducedMotion() ? "pin" : "swipe");
+    decide();
+    mq.addEventListener("change", decide);
+    return () => mq.removeEventListener("change", decide);
   }, []);
 
-  const scrollToEnd = () => {
-    if (targetRef.current) {
-      const sectionBottom = targetRef.current.offsetTop + targetRef.current.offsetHeight;
-      window.scrollTo({ top: sectionBottom, behavior: "smooth" });
+  const count = projects.length + 1;
+
+  useEffect(() => {
+    if (mode !== "pin" || loading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the pin height when leaving pin mode
+      setHeight(null);
+      return;
     }
-  };
+    const track = trackRef.current;
+    const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
+    const measure = () => setHeight(distance() + window.innerHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(track);
+
+    const ctx = gsap.context(() => {
+      const skewTo = gsap.quickTo(track, "skewX", { duration: 0.4, ease: "power3" });
+      const slide = gsap.to(track, {
+        x: () => -distance(),
+        ease: "none",
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.6,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            skewTo(gsap.utils.clamp(-6, 6, self.getVelocity() / -400));
+            if (barRef.current) barRef.current.style.transform = `scaleX(${self.progress})`;
+            setCurrent(Math.min(count, Math.max(1, Math.round(self.progress * (count - 1)) + 1)));
+          },
+          onScrubComplete: () => skewTo(0),
+        },
+      });
+
+      gsap.utils.toArray(".project-card", track).forEach((card) => {
+        const img = card.querySelector(".project-img");
+        if (img) {
+          gsap.fromTo(
+            img,
+            { xPercent: -6 },
+            { xPercent: 6, ease: "none", scrollTrigger: { trigger: card, containerAnimation: slide, start: "left right", end: "right left", scrub: true } },
+          );
+        }
+        gsap.from(card, {
+          rotateY: -24,
+          scale: 0.88,
+          transformPerspective: 1200,
+          transformOrigin: "left center",
+          ease: "none",
+          scrollTrigger: { trigger: card, containerAnimation: slide, start: "left 105%", end: "left 55%", scrub: true },
+        });
+      });
+    }, sectionRef);
+
+    return () => {
+      ro.disconnect();
+      ctx.revert();
+    };
+  }, [mode, loading, count]);
+
+  // ScrollTrigger positions depend on the section height we just set.
+  useEffect(() => {
+    if (height) ScrollTrigger.refresh();
+  }, [height]);
+
+  const pinned = mode === "pin";
 
   return (
-    <section ref={targetRef} id="projects" className="relative h-[300vh] bg-[var(--surface)]">
-      <div ref={stickyRef} className="sticky top-0 h-[100svh] flex flex-col justify-center overflow-hidden border-t border-[var(--border)]">
-        <div className="absolute top-20 md:top-28 left-0 right-0 z-10 pointer-events-none">
-          <div className="max-w-7xl mx-auto px-4 md:px-12 flex justify-between items-end">
-            <div className="flex items-center gap-3 md:gap-4 text-[var(--fg)]">
-              <div className="w-2 h-2 bg-[var(--acc)] rounded-full animate-pulse" />
-              <h2 className="text-[10px] md:text-sm font-mono uppercase tracking-widest opacity-80">
-                Featured Projects // Scroll to Explore
-              </h2>
-            </div>
+    <section
+      id="projects"
+      ref={sectionRef}
+      aria-labelledby="projects-title"
+      className="relative bg-[var(--bg)] border-t border-[var(--border)]"
+      style={pinned && height ? { height } : undefined}
+    >
+      <div className={pinned ? "sticky top-0 h-[100svh] overflow-hidden flex flex-col justify-center" : "section-y"}>
+        <div className="max-w-screen-container layout-padding w-full flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 md:mb-10">
+          <SectionHeading index="04" eyebrow="Selected work" title={["Featured", "Projects"]} id="projects-title" compact />
+          <div className="flex flex-col md:items-end gap-3 font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]" data-reveal="up">
+            {!loading && !error ? <span>{projects.length} projects · live from GitHub</span> : null}
+            <span className="hidden md:inline">{pinned ? "Scroll to explore" : "Swipe to explore"}</span>
+            <span className="md:hidden">Swipe to explore</span>
           </div>
         </div>
 
-        {error && (
-          <div className="absolute top-32 md:top-40 left-0 right-0 z-20 pointer-events-none">
-            <div className="max-w-7xl mx-auto px-4 md:px-12">
-              <p className="font-mono text-xs text-[var(--acc)] opacity-70 pointer-events-auto">
-                Projects temporarily unavailable.{" "}
-                <a href="https://github.com/blaxezcode" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">blaxezcode</a>{" / "}
-                <a href="https://github.com/Blaxez" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">Blaxez</a>
-              </p>
-            </div>
-          </div>
-        )}
-
-        <motion.div ref={contentRef} style={{ x }} className="flex gap-4 md:gap-8 lg:gap-16 px-4 md:px-12 will-change-transform w-max">
-          {projects.map((project, i) => (
-            <ServiceCard
-              key={project.id || i}
-              service={project}
-              i={i}
-              progress={smoothProgress}
-              active={activeCard === i}
-              onClick={() => setActiveCard(activeCard === i ? null : i)}
-            />
-          ))}
-        </motion.div>
-
-        <div className="absolute bottom-6 md:bottom-12 left-0 right-0 z-10 pointer-events-none">
-          <div className="max-w-7xl mx-auto px-4 md:px-12 flex items-center gap-4 md:gap-6 pointer-events-auto">
-            <div className="flex-1 h-[1px] bg-[var(--border)] overflow-hidden">
-              <motion.div style={{ scaleX: smoothProgress, originX: 0 }} className="h-full bg-[var(--acc)]" />
-            </div>
-            <div className="font-mono text-[10px] md:text-xs text-[var(--fg)] opacity-50 whitespace-nowrap">
-              {projects.length} Projects
-            </div>
-            <button
-              onClick={scrollToEnd}
-              className="flex items-center gap-1.5 font-mono text-[10px] md:text-xs text-[var(--acc)] opacity-70 hover:opacity-100 transition-opacity cursor-pointer bg-transparent border border-[var(--acc)]/30 hover:border-[var(--acc)] rounded-full px-3 py-1.5 whitespace-nowrap"
-              title="Skip to end of projects"
-            >
-              <span>Skip to End</span>
-              <ChevronsDown size={12} />
-            </button>
-          </div>
+        <div
+          ref={trackRef}
+          className={`flex gap-5 md:gap-8 items-stretch will-change-transform ${
+            pinned
+              ? "w-max px-[max(1.5rem,calc((100vw-1440px)/2+3rem))]"
+              : "overflow-x-auto snap-x snap-mandatory scrollbar-none px-6 md:px-10 pb-4 scroll-px-6"
+          }`}
+          role="list"
+          aria-label="Projects"
+          aria-busy={loading}
+        >
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            <>
+              {projects.map((project, i) => (
+                <div role="listitem" key={project.id} className="contents">
+                  <ProjectCard project={project} index={i} />
+                </div>
+              ))}
+              <div role="listitem" className="contents">
+                <MoreCard message={error ? "Projects couldn't load from GitHub right now — browse them directly." : null} />
+              </div>
+            </>
+          )}
         </div>
+
+        {pinned ? (
+          <div className="max-w-screen-container layout-padding w-full mt-8 md:mt-10 flex items-center gap-6" aria-hidden="true">
+            <div className="flex-1 h-px bg-[var(--border)] overflow-hidden">
+              <div ref={barRef} className="h-full bg-[var(--acc)] origin-left" style={{ transform: "scaleX(0)" }} />
+            </div>
+            <span className="font-mono text-[11px] tracking-widest text-[var(--muted)] tabular-nums">
+              {String(current).padStart(2, "0")} / {String(count).padStart(2, "0")}
+            </span>
+          </div>
+        ) : null}
       </div>
     </section>
   );

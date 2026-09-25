@@ -1,55 +1,51 @@
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { ScrollPersistence } from "@/components/hooks/useScrollPersistence";
+import SmoothScroll from "@/components/providers/SmoothScroll";
+import Cursor from "@/components/fx/Cursor";
 import { getAssetPath } from "@/lib/assets";
-import { Anton, Space_Grotesk, Playfair_Display } from "next/font/google";
+import { SITE } from "@/lib/site";
+import { Anton, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 
-/* ── Self-hosted Google Fonts (downloaded at build time) ── */
-const anton = Anton({
-  weight: "400",
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-anton",
-});
+const anton = Anton({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-anton" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], display: "swap", variable: "--font-space-grotesk" });
+const jetbrains = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-jetbrains", preload: false });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-space-grotesk",
-});
-
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-playfair",
-});
+const title = `${SITE.name} — ${SITE.role}`;
 
 export const metadata = {
-  title: "Santosh Maurya — Full-Stack Developer | AI & ML | Game Dev",
-  description:
-    "Portfolio of Santosh Maurya — Full-Stack Developer, AI/ML Innovator, and Game Developer.",
-  icons: {
-    icon: "/favicon.ico",
-  },
+  metadataBase: new URL(SITE.url),
+  title,
+  description: SITE.description,
+  authors: [{ name: SITE.name }],
+  openGraph: { type: "website", url: SITE.url, title, description: SITE.description, siteName: SITE.name },
+  twitter: { card: "summary_large_image", title, description: SITE.description },
 };
+
+export const viewport = {
+  themeColor: "#050505",
+};
+
+// Applied before first paint: no theme flash. Dark is the default; an explicit choice is remembered.
+const themeScript = `(function(){var d=document.documentElement;try{if(localStorage.getItem("theme")==="light"){d.classList.remove("dark")}else{d.classList.add("dark")}}catch(e){}try{if(sessionStorage.getItem("intro"))d.classList.add("intro-seen")}catch(e){}})()`;
 
 export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`dark ${anton.variable} ${spaceGrotesk.variable} ${playfairDisplay.variable}`}
+      className={`dark ${anton.variable} ${spaceGrotesk.variable} ${jetbrains.variable}`}
+      suppressHydrationWarning
     >
-      <head></head>
-      <body className="selection:bg-[var(--acc)] selection:text-white">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body>
         <ThemeProvider>
-          <ScrollPersistence />
-          {/* Film Grain Overlay */}
+          <SmoothScroll />
+          <Cursor />
           <div
-            className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.07]"
-            style={{
-              backgroundImage: `url('${getAssetPath("/assets/noise.svg")}')`,
-              mixBlendMode: "overlay",
-            }}
+            aria-hidden="true"
+            className="grain"
+            style={{ backgroundImage: `url('${getAssetPath("/assets/noise.svg")}')` }}
           />
           {children}
         </ThemeProvider>

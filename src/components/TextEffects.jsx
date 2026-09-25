@@ -30,7 +30,13 @@ export const ScrambleText = ({ text, active }) => {
     return () => clearInterval(interval);
   }, [active, text]);
 
-  return <span>{display}</span>;
+  // Scrambled glyphs are visual only; assistive tech gets the real word.
+  return (
+    <>
+      <span aria-hidden="true">{display}</span>
+      <span className="sr-only">{text}</span>
+    </>
+  );
 };
 
 export const DecryptText = ({ text }) => {
