@@ -1,68 +1,36 @@
-# Santosh Maurya — Portfolio
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A scroll-driven narrative portfolio. The hero is a hand-written WebGL2 renderer, running in a Web Worker, that deconstructs the Utah teapot into its render passes as you scroll: geometry → normals → depth → lighting → composite.
+## Getting Started
 
-**Stack:** Next.js 16 (App Router, static export) · TypeScript · Tailwind CSS v4 · raw WebGL2 / GLSL ES 3.00 · GSAP ScrollTrigger. Deployed to GitHub Pages under `/portfolio`.
-
-## Commands
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Dev server at http://localhost:3000 |
-| `npm run build` | Static export to `out/` + `scripts/paint-first.mjs` post-step |
-| `npm run lint` / `npm run typecheck` | ESLint / `tsc --noEmit` |
-
-Performance harness (isolated deps, never shipped):
+First, run the development server:
 
 ```bash
-cd scripts/perf && npm install
-node bundle.mjs       # initial-route JS budget
-node lighthouse.mjs   # Lighthouse mobile + desktop, median of RUNS (default 3)
-node runtime.mjs      # 4× CPU scroll fps, INP, 3D-ready @ 10 Mbps
-node shot.mjs         # screenshots at scroll stops (OUT=dir STOPS=0,0.2,…)
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Set `CHROME=/path/to/chrome` if Chromium isn't at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Editing content
+You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
-| File | Contents |
-| --- | --- |
-| `src/content/site.ts` | Name, headline, email, links, CV path |
-| `src/content/stages.ts` | The five render-pass beats in the Craft section |
-| `src/content/about.ts` | Toolchains and record |
-| `src/content/projects.ts` | Case studies. Entries with `seed: true` are placeholders: replace them, then set `seed: false`. Dev builds show a SEED badge, and production builds log a warning while any remain |
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-Project covers default to an inline architecture schematic (`schematic` field). To use an image instead, add `public/work/<slug>.avif` (1600×1000) and set `cover: "/work/<slug>.avif"`.
+## Learn More
 
-## Architecture
+To learn more about Next.js, take a look at the following resources:
 
-```
-src/
-  app/            layout (fonts, metadata), page (beat order), globals.css (design tokens)
-  content/        typed copy and data
-  components/
-    sections/     Hero · Craft · About · Work · Contact (server components)
-    stage/        Stage3D (worker host), RenderHud (live stats + loading state)
-    motion/       Choreography (GSAP, lazy-loaded), ViewportObserver (reveals, nav spy)
-    ui/           SectionHeader, CopyEmail, LocalTime, icons
-  gl/
-    teapot-data   Newell's 32 Bézier patches
-    tessellate    patch → triangle list (quad-diagonal aware) + control cage
-    shaders       one program covers all five passes; a model-space scan plane wipes between them
-    renderer      DOM-free WebGL2 renderer (worker or main thread), adaptive DPR
-    prewarm       starts the worker before hydration
-    quality       LOD tiers (tessellation, DPR cap, MSAA, shader lobes)
-    bridge        main-thread store: scroll/pointer → renderer, stats → HUD
-```
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-Performance decisions:
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-- **All content is server-rendered.** Seven small client islands handle interactivity.
-- **Rendering runs off the main thread.** The worker uses `OffscreenCanvas` and is started at module evaluation, so it boots in parallel with hydration. Browsers without worker support fall back to the main thread automatically.
-- **Hydration waits for first paint.** `scripts/paint-first.mjs` requests Next's chunks once the `first-contentful-paint` entry is observed, so LCP (the hero headline) never waits on framework JS.
-- **GSAP loads after hydration.** Pinning uses CSS `position: sticky` (no pin-spacers, no CLS). Only `transform` and `opacity` animate, and scrubbed elements are promoted to their own compositor layers.
-- **LOD tiers are picked from device hints,** and the renderer adapts DPR to frame time at runtime. Mobile gets lower tessellation; 3D is not switched off.
-- **Degraded modes stay complete.** `prefers-reduced-motion` switches passes discretely, with no scrubs or auto-rotation. With JS off, all content remains readable.
+## Deploy on Vercel
 
-Design system, narrative and measured results: [`docs/REDESIGN_PLAN.md`](docs/REDESIGN_PLAN.md).
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

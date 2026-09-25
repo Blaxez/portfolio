@@ -39,9 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# perf harness
-/scripts/perf/node_modules
-/scripts/perf/*.json
-!/scripts/perf/package.json
-!/scripts/perf/package-lock.json
