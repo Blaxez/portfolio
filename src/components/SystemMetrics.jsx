@@ -294,7 +294,7 @@ function RotatingQuote() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- date-based pick is client-only
     setQuote(QUOTES[(now.getHours() + now.getDate()) % QUOTES.length]);
   }, []);
-  return <p className="serif italic text-[0.95rem] text-[var(--signal)] mt-3 leading-snug">&ldquo;{quote}&rdquo;</p>;
+  return <p className="font-mono text-[11px] text-[var(--acc)] mt-3 italic leading-relaxed">&ldquo;{quote}&rdquo;</p>;
 }
 
 const spot = (e) => {
@@ -308,11 +308,11 @@ function Card({ icon: Icon, tag, children, className = "" }) {
     <article
       onPointerMove={spot}
       data-reveal="up"
-      className={`spotlight min-h-[360px] relative overflow-hidden rounded-2xl bg-[var(--surface)] border border-[var(--line)] hover:border-[rgba(var(--signal-rgb),0.45)] transition-[border-color,transform] duration-500 hover:-translate-y-1 flex flex-col ${className}`}
+      className={`spotlight min-h-[360px] relative overflow-hidden rounded-3xl bg-[var(--surface)] border border-[var(--line)] hover:border-[rgba(var(--signal-rgb),0.45)] transition-[border-color,transform] duration-500 hover:-translate-y-1 flex flex-col ${className}`}
     >
       <div className="relative z-10 flex justify-between items-start p-6">
         <Icon className="text-[var(--signal)]" size={20} aria-hidden="true" />
-        <span className="label !text-[0.64rem] bg-[var(--bg)]/80 px-2.5 py-1 rounded-full border border-[var(--line)]">{tag}</span>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--muted)] bg-[var(--bg)]/80 px-2.5 py-1 rounded-full border border-[var(--line)]">{tag}</span>
       </div>
       {children}
     </article>
@@ -324,26 +324,15 @@ export default function SystemMetrics() {
   return (
     <section id="metrics" aria-labelledby="metrics-title" className="section-y relative bg-[var(--bg)]">
       <div className="max-w-screen-container layout-padding">
-        <SectionHeading
-          index="05"
-          label="By the numbers"
-          aside="Small, and all true"
-          id="metrics-title"
-          className="mb-12 md:mb-16"
-          title={
-            <>
-              In <em>numbers.</em>
-            </>
-          }
-        />
+        <SectionHeading index="05" eyebrow="By the numbers" title={["In", "Numbers"]} id="metrics-title" className="mb-12 md:mb-16" />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 md:gap-6">
           <Card icon={Globe} tag="Location">
             <div className="absolute inset-x-0 top-6 bottom-20 pointer-events-none">
               <GlobeCanvas pal={pal} />
             </div>
             <div className="relative z-10 mt-auto p-6">
-              <h3 className="font-[family-name:var(--font-display)] text-4xl uppercase tracking-[0.04em] text-[var(--fg)] leading-none">Mumbai</h3>
-              <p className="text-sm text-[var(--muted)] mt-2">
+              <h3 className="text-3xl font-bold text-[var(--fg)] leading-tight tracking-tight uppercase">Mumbai</h3>
+              <p className="font-mono text-xs text-[var(--muted)] mt-2">
                 <LocalTime /> · remote-ready
               </p>
             </div>
@@ -354,12 +343,12 @@ export default function SystemMetrics() {
               <GrowthCurve rgb={pal.beam} />
             </div>
             <div className="relative z-10 mt-auto p-6 bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/90 to-transparent">
-              <p className="font-[family-name:var(--font-display)] text-6xl text-[var(--fg)] leading-none tabular">
+              <p className="text-5xl font-bold text-[var(--fg)] leading-none tabular">
                 <span data-count="4" data-suffix="+">
                   4+
                 </span>
               </p>
-              <h3 className="label mt-3">Years building</h3>
+              <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--muted)] mt-2">Years building</h3>
               <RotatingQuote />
             </div>
           </Card>
@@ -369,24 +358,24 @@ export default function SystemMetrics() {
               <TerminalLog />
             </div>
             <div className="relative z-10 mt-auto p-6 border-t border-[var(--line)]">
-              <p className="font-[family-name:var(--font-display)] text-6xl text-[var(--fg)] leading-none tabular">
+              <p className="text-5xl font-bold text-[var(--fg)] leading-none tabular">
                 <span data-count="48" data-suffix="h">
                   48h
                 </span>
               </p>
-              <h3 className="label mt-3">Hackathon prototype</h3>
+              <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--muted)] mt-2">Hackathon prototype</h3>
               <p className="text-sm text-[var(--muted)] mt-2">2nd place · IEEE Software category, 15+ teams</p>
             </div>
           </Card>
 
           <Card icon={Zap} tag="Status">
             <div className="relative z-10 mt-auto p-6 text-right">
-              <p className="font-[family-name:var(--font-display)] text-[5.5rem] lg:text-[6.5rem] leading-none text-gradient tabular">
+              <p className="text-[5rem] lg:text-[6rem] leading-none font-bold text-gradient tracking-tighter tabular">
                 <span data-count="25" data-suffix="+">
                   25+
                 </span>
               </p>
-              <h3 className="label mt-3">Technologies in the stack</h3>
+              <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--muted)] mt-2">Technologies in the stack</h3>
               <p className="mt-4 flex items-center justify-end gap-2 text-sm text-[var(--fg)]">
                 <span className="relative flex h-2 w-2" aria-hidden="true">
                   <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--beam)] opacity-75" />

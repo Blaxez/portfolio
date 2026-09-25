@@ -6,7 +6,6 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Pause, Play } from "lucide-react";
 import { getAssetPath } from "@/lib/assets";
-import Rule from "./ui/Rule";
 import { prefersReducedMotion } from "@/lib/scroll";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -172,18 +171,14 @@ export default function Skills() {
 
       <div className="absolute inset-0 z-[5] pointer-events-none flex flex-col justify-between">
         <div className="max-w-screen-container layout-padding w-full pt-20 md:pt-24">
-          <Rule />
-          <div className="mt-4 flex items-baseline justify-between gap-6" data-reveal="up">
-            <span className="flex items-baseline gap-4">
-              <span className="index">(02)</span>
-              <span className="label">Skills</span>
-            </span>
-            <h2 id="skills-title" className="serif text-2xl md:text-3xl tracking-[-0.02em] text-[var(--fg)]">
-              Tech <em>stack</em>
-            </h2>
-          </div>
+          <p className="eyebrow" data-reveal="up">
+            <span aria-hidden="true">[ </span>02 — Skills<span aria-hidden="true"> ]</span>
+          </p>
+          <h2 id="skills-title" className="mt-3 text-2xl md:text-4xl font-bold uppercase tracking-tighter text-[var(--fg)]" data-split>
+            Tech Stack
+          </h2>
 
-          <div className="mt-6 md:mt-10 h-[104px] md:h-[136px]">
+          <div className="mt-6 md:mt-10 h-[92px] md:h-[124px]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={current.id}
@@ -192,10 +187,10 @@ export default function Skills() {
                 exit={{ opacity: 0, y: -16, filter: "blur(6px)" }}
                 transition={{ duration: 0.35, ease: "easeOut" }}
               >
-                <p className="label !text-[var(--signal)]">{current.category}</p>
+                <p className="font-mono text-[10px] md:text-xs uppercase tracking-[0.25em] text-[var(--signal)]">{current.category}</p>
                 <p
-                  className="mt-2 font-[family-name:var(--font-display)] text-[2.9rem] md:text-7xl uppercase tracking-[0.04em] leading-none text-[var(--fg)]"
-                  style={{ textShadow: "0 0 40px rgba(255, 91, 34, 0.35), 0 2px 10px rgba(0,0,0,0.8)" }}
+                  className="mt-1 text-5xl md:text-7xl font-bold uppercase tracking-tighter leading-none text-[var(--fg)]"
+                  style={{ textShadow: "0 0 40px rgba(255, 91, 34, 0.4), 0 2px 10px rgba(0,0,0,0.8)" }}
                 >
                   {current.label}
                 </p>
@@ -222,7 +217,7 @@ export default function Skills() {
                   type="button"
                   aria-pressed={category === cat}
                   onClick={() => chooseCategory(cat)}
-                  className={`min-h-9 text-[0.7rem] md:text-[0.74rem] font-medium uppercase tracking-[0.12em] px-3.5 md:px-4 border rounded-full whitespace-nowrap transition-colors duration-300 ${
+                  className={`min-h-9 font-mono text-[10px] md:text-[11px] uppercase tracking-widest px-3 md:px-4 border rounded-full whitespace-nowrap transition-colors duration-300 ${
                     category === cat
                       ? "border-[var(--signal)] text-[var(--signal)] bg-[rgba(var(--signal-rgb),0.1)]"
                       : "border-[var(--line)] text-[var(--muted)] hover:text-[var(--fg)] hover:border-[var(--line-strong)]"
@@ -263,13 +258,13 @@ export default function Skills() {
                     className="h-4 w-4 flex-shrink-0 bg-current"
                     style={{ WebkitMaskImage: icon, maskImage: icon, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat" }}
                   />
-                  <span className={`text-[0.72rem] md:text-[0.76rem] font-medium uppercase tracking-[0.08em]`}>{item.label}</span>
+                  <span className="font-mono text-[10px] md:text-[11px] uppercase tracking-wider">{item.label}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="flex justify-between items-center mt-3 px-1 label">
+          <div className="flex justify-between items-center mt-3 px-1 font-mono text-[10px] md:text-[11px] uppercase tracking-widest text-[var(--muted)]">
             <span aria-hidden="true" className="tabular">
               {String(Math.max(position, 0) + 1).padStart(2, "0")} / {String(filtered.length).padStart(2, "0")}
             </span>

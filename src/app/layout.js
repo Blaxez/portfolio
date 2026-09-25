@@ -5,17 +5,11 @@ import Cursor from "@/components/fx/Cursor";
 import LightTrail from "@/components/fx/LightTrail";
 import { getAssetPath } from "@/lib/assets";
 import { SITE } from "@/lib/site";
-import { Anton, Instrument_Serif, Instrument_Sans } from "next/font/google";
+import { Anton, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 
-const serif = Instrument_Serif({
-  weight: "400",
-  style: ["normal", "italic"],
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-instrument-serif",
-});
 const anton = Anton({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-anton" });
-const sans = Instrument_Sans({ subsets: ["latin"], display: "swap", variable: "--font-instrument-sans" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], display: "swap", variable: "--font-space-grotesk" });
+const jetbrains = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-jetbrains", preload: false });
 
 const title = `${SITE.name} — ${SITE.role}`;
 
@@ -39,7 +33,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`dark ${anton.variable} ${serif.variable} ${sans.variable}`}
+      className={`dark ${anton.variable} ${spaceGrotesk.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
     >
       <head>
