@@ -60,12 +60,12 @@ export default function Footer() {
       </div>
 
       <div ref={sigRef} className="sig relative mt-10 md:mt-6 select-none" aria-hidden="true">
-        <p className="sig-text serif whitespace-nowrap text-center leading-[0.8] tracking-[-0.045em] text-[var(--fg)]">
-          Santosh <em>Maurya</em>
+        <p className="sig-text hero-name-line whitespace-nowrap text-center font-[family-name:var(--font-display)] uppercase leading-[0.9] tracking-[0.06em]">
+          Santosh Maurya
         </p>
         <span className="sig-line" />
       </div>
-      <p className="max-w-screen-container layout-padding pb-10 pt-8 md:pt-10 text-center serif italic text-[var(--muted)] text-lg">
+      <p className="max-w-screen-container layout-padding pb-10 pt-6 md:pt-8 text-center font-mono italic text-[var(--muted)] text-xs md:text-sm">
         “What falls, comes up even better.”
       </p>
     </footer>

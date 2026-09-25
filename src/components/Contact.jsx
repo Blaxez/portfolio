@@ -1,12 +1,75 @@
 "use client";
-import { useRef, useState } from "react";
-import { ArrowUpRight, Check, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { Mail, MapPin, ArrowUpRight, Github, Linkedin, MessageCircle, Check, Copy, Loader2 } from "lucide-react";
 import SectionHeading from "./ui/SectionHeading";
-import LocalTime from "./ui/LocalTime";
 import { SITE } from "@/lib/site";
 
-function EmailBlock() {
+const SOCIAL_ICONS = { github: Github, linkedin: Linkedin, whatsapp: MessageCircle };
+
+/* ── Particle-wave backdrop (three.js, loaded when the section approaches) ── */
+function WaveBackdrop() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    let wave;
+    let cancelled = false;
+    const colors = () => {
+      const css = getComputedStyle(document.documentElement);
+      return [css.getPropertyValue("--beam").trim(), css.getPropertyValue("--acc-2").trim(), !document.documentElement.classList.contains("dark")];
+    };
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        import("@/lib/three/ParticleWave").then(({ mountParticleWave }) => {
+          if (cancelled) return;
+          const [a, b, light] = colors();
+          wave = mountParticleWave(el, { colorA: a, colorB: b, light });
+        });
+      },
+      { rootMargin: "300px 0px" },
+    );
+    io.observe(el);
+    const onTheme = () => wave?.setColors(...colors());
+    window.addEventListener("themechange", onTheme);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+      window.removeEventListener("themechange", onTheme);
+      wave?.destroy();
+    };
+  }, []);
+  return <div ref={ref} aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[75%] md:h-full pointer-events-none" />;
+}
+
+/* ── Clock in Mumbai time, whatever the visitor's timezone ── */
+function MumbaiTime() {
+  const [time, setTime] = useState(null);
+  useEffect(() => {
+    const fmt = new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: SITE.timeZone });
+    const tick = () => setTime(fmt.format(new Date()));
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="inline-block min-w-[9ch] text-right tabular-nums">
+      {time ?? "--:-- --"} {SITE.timeZoneLabel}
+    </span>
+  );
+}
+
+function HolographicCard() {
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
   const [copyState, setCopyState] = useState("idle");
+
+  const onMove = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setMouse({ x: (e.clientX - r.left) / r.width - 0.5, y: (e.clientY - r.top) / r.height - 0.5 });
+  };
+
   const copyEmail = async () => {
     try {
       await navigator.clipboard.writeText(SITE.email);
@@ -18,60 +81,103 @@ function EmailBlock() {
   };
 
   return (
-    <div>
-      <p className="label">Write to me</p>
-      <a
-        href={`mailto:${SITE.email}`}
-        className="group mt-5 block w-fit max-w-full serif text-[1.55rem] sm:text-[2.2rem] lg:text-[2.9rem] leading-[1.05] tracking-[-0.02em] text-[var(--fg)] [overflow-wrap:anywhere] transition-colors hover:text-[var(--signal)]"
-        data-cursor-label="Write"
+    <div className="relative w-full max-w-md" style={{ perspective: 1000 }} data-reveal="up">
+      <motion.div
+        className="relative w-full rounded-2xl overflow-hidden bg-[var(--surface)]/95 border border-[var(--border)] shadow-2xl"
+        onPointerMove={onMove}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => {
+          setHovered(false);
+          setMouse({ x: 0, y: 0 });
+        }}
+        animate={{ rotateY: hovered ? mouse.x * 16 : 0, rotateX: hovered ? -mouse.y * 16 : 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 26 }}
+        style={{ transformStyle: "preserve-3d" }}
       >
-        {SITE.email}
-      </a>
-      <div className="rule mt-4" data-rule aria-hidden="true">
-        <span className="rule-fill" />
-        <span className="beam-head" />
-      </div>
-      <div className="mt-4 flex items-center gap-4">
-        <button type="button" onClick={copyEmail} className="label link-u inline-flex min-h-11 items-center gap-2 hover:text-[var(--fg)]" aria-label="Copy email address">
-          {copyState === "copied" ? <Check size={12} aria-hidden="true" /> : null}
-          <span aria-hidden="true">{copyState === "copied" ? "Copied" : copyState === "failed" ? "Select it instead" : "Copy address"}</span>
-        </button>
-        <span className="sr-only" role="status" aria-live="polite">
-          {copyState === "copied" ? "Email address copied" : copyState === "failed" ? "Couldn't copy — select the address instead" : ""}
-        </span>
-      </div>
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none transition-opacity duration-500"
+          style={{
+            opacity: hovered ? 1 : 0.5,
+            background: `radial-gradient(circle at ${50 + mouse.x * 100}% ${50 + mouse.y * 100}%, rgba(var(--acc-rgb), 0.22), transparent 60%), linear-gradient(115deg, transparent 30%, rgba(var(--acc-rgb), 0.08) 45%, rgba(255, 154, 92, 0.1) 55%, transparent 70%)`,
+          }}
+        />
+        <div className="relative z-10 p-6 md:p-8 flex flex-col gap-6" style={{ transform: "translateZ(24px)" }}>
+          <div className="flex justify-between items-start gap-4">
+            <div>
+              <p className="text-2xl font-black text-[var(--fg)] tracking-tight uppercase">{SITE.name}</p>
+              <p className="text-sm font-mono text-[var(--acc)] mt-1">Full-Stack Developer</p>
+            </div>
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+              <span className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--acc)]/10 border border-[var(--acc)]/25">
+                <span className="relative flex h-2 w-2" aria-hidden="true">
+                  <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--beam)] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--beam)]" />
+                </span>
+                <span className="text-[10px] font-mono text-[var(--fg)] uppercase tracking-wider">Available</span>
+              </span>
+              <span className="text-[11px] font-mono text-[var(--muted)]">
+                <span className="sr-only">Local time in Mumbai: </span>
+                <MumbaiTime />
+              </span>
+            </div>
+          </div>
 
-      <dl className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-8 border-t border-[var(--line)] pt-8">
-        <div>
-          <dt className="label">Based in</dt>
-          <dd className="mt-2 text-[var(--fg)]">{SITE.location}</dd>
-        </div>
-        <div>
-          <dt className="label">Local time</dt>
-          <dd className="mt-2 text-[var(--fg)]">
-            <LocalTime />
-          </dd>
-        </div>
-        <div>
-          <dt className="label">Status</dt>
-          <dd className="mt-2 flex items-center gap-2 text-[var(--fg)]">
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--beam)]" />
-            Open to work
-          </dd>
-        </div>
-      </dl>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg)]/60 border border-[var(--border)]">
+              <span className="p-2 rounded-lg bg-[var(--acc)]/10 text-[var(--acc)]" aria-hidden="true">
+                <Mail size={16} />
+              </span>
+              <a href={`mailto:${SITE.email}`} className="min-w-0 flex-1 group">
+                <span className="block text-[10px] text-[var(--muted)] uppercase tracking-widest">Email</span>
+                <span className="block text-xs font-mono text-[var(--fg)] break-all sm:break-normal sm:truncate group-hover:text-[var(--acc)] transition-colors">{SITE.email}</span>
+              </a>
+              <button
+                type="button"
+                onClick={copyEmail}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full border border-[var(--border)] font-mono text-[10px] uppercase tracking-widest text-[var(--fg)] hover:border-[var(--acc)] hover:text-[var(--acc)] transition-colors"
+                aria-label="Copy email address"
+              >
+                {copyState === "copied" ? <Check size={12} /> : <Copy size={12} />}
+                {copyState === "copied" ? "Copied" : copyState === "failed" ? "Select" : "Copy"}
+              </button>
+              <span className="sr-only" role="status" aria-live="polite">
+                {copyState === "copied" ? "Email address copied" : copyState === "failed" ? "Couldn't copy — select the address instead" : ""}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg)]/60 border border-[var(--border)]">
+              <span className="p-2 rounded-lg bg-[var(--acc)]/10 text-[var(--acc)]" aria-hidden="true">
+                <MapPin size={16} />
+              </span>
+              <span>
+                <span className="block text-[10px] text-[var(--muted)] uppercase tracking-widest">Base</span>
+                <span className="block text-xs font-mono text-[var(--fg)]">{SITE.location}</span>
+              </span>
+            </div>
+          </div>
 
-      <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-2">
-        {SITE.socials.map((s) => (
-          <li key={s.id}>
-            <a href={s.href} target="_blank" rel="noopener noreferrer" className="group inline-flex min-h-11 items-center gap-1.5 text-[var(--fg)]">
-              <span className="link-u">{s.label}</span>
-              <ArrowUpRight size={14} aria-hidden="true" className="text-[var(--muted)] transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          </li>
-        ))}
-      </ul>
+          <ul className="flex items-center gap-3 pt-4 border-t border-[var(--border)]">
+            {SITE.socials.map((s) => {
+              const Icon = SOCIAL_ICONS[s.id];
+              return (
+                <li key={s.id}>
+                  <a
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${s.label} (opens in a new tab)`}
+                    title={s.label}
+                    className="w-11 h-11 rounded-full bg-[var(--bg)] border border-[var(--border)] flex items-center justify-center text-[var(--fg)] hover:bg-[var(--acc)] hover:border-[var(--acc)] hover:text-white transition-all hover:-translate-y-0.5"
+                    data-magnetic="0.25"
+                  >
+                    <Icon size={18} aria-hidden="true" />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -141,7 +247,7 @@ function ContactForm() {
   };
 
   const inputClass =
-    "peer w-full bg-transparent border-b py-4 text-lg md:text-xl text-[var(--fg)] focus:outline-none focus-visible:outline-none transition-colors placeholder-transparent";
+    "peer w-full bg-transparent border-b py-4 text-lg md:text-xl text-[var(--fg)] focus:outline-none transition-colors placeholder-transparent";
 
   return (
     <form
@@ -149,11 +255,11 @@ function ContactForm() {
       onSubmit={submit}
       noValidate
       aria-labelledby="contact-form-title"
-      className="relative"
+      className="rounded-3xl border border-[var(--border)] bg-[var(--surface)]/95 p-6 md:p-10 shadow-2xl"
       data-reveal="up"
     >
-      <p id="contact-form-title" className="label mb-8">
-        Or leave a message
+      <p id="contact-form-title" className="eyebrow mb-6">
+        Send a message
       </p>
       <div className="space-y-7">
         {FIELDS.map((f) => {
@@ -169,7 +275,7 @@ function ContactForm() {
             required: f.required,
             "aria-invalid": invalid || undefined,
             "aria-describedby": invalid ? errorId : undefined,
-            className: `${inputClass} ${invalid ? "border-red-700 dark:border-red-400" : "border-[var(--line-strong)] focus:border-[var(--beam)]"}`,
+            className: `${inputClass} ${invalid ? "border-red-600 dark:border-red-400" : "border-[var(--border)] focus:border-[var(--acc)]"}`,
           };
           return (
             <div key={f.name} className="relative">
@@ -180,12 +286,12 @@ function ContactForm() {
               )}
               <label
                 htmlFor={id}
-                className="absolute left-0 -top-3 text-[0.72rem] font-medium uppercase tracking-[0.14em] text-[var(--muted)] transition-all pointer-events-none peer-placeholder-shown:top-5 peer-placeholder-shown:text-base peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-focus:-top-3 peer-focus:text-[0.72rem] peer-focus:uppercase peer-focus:tracking-[0.14em] peer-focus:text-[var(--signal)]"
+                className="absolute left-0 -top-3 font-mono text-[11px] uppercase tracking-widest text-[var(--muted)] transition-all pointer-events-none peer-placeholder-shown:top-5 peer-placeholder-shown:text-xs peer-focus:-top-3 peer-focus:text-[11px] peer-focus:text-[var(--acc)]"
               >
                 {f.label}
               </label>
               {invalid ? (
-                <p id={errorId} className="mt-2 text-sm text-red-700 dark:text-red-400">
+                <p id={errorId} className="mt-2 text-sm text-red-600 dark:text-red-400">
                   {errors[f.name]}
                 </p>
               ) : null}
@@ -199,18 +305,18 @@ function ContactForm() {
       </div>
 
       <div className="mt-10 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-5">
-        <p role="status" aria-live="polite" className={`text-sm ${status.state === "error" ? "text-red-700 dark:text-red-400" : "text-[var(--muted)]"}`}>
+        <p role="status" aria-live="polite" className={`text-sm ${status.state === "error" ? "text-red-600 dark:text-red-400" : "text-[var(--muted)]"}`}>
           {status.message}
           {status.state === "handoff" || status.state === "error" ? (
             <>
               {" "}
-              <a href={`mailto:${SITE.email}`} className="link-u is-static text-[var(--signal)]">
+              <a href={`mailto:${SITE.email}`} className="underline underline-offset-4 text-[var(--acc)]">
                 {SITE.email}
               </a>
             </>
           ) : null}
         </p>
-        <button type="submit" className="btn btn-solid flex-shrink-0" disabled={status.state === "sending"} data-magnetic="0.25">
+        <button type="submit" className="btn btn-primary flex-shrink-0" disabled={status.state === "sending"} data-magnetic="0.3">
           {status.state === "sending" ? (
             <>
               Sending <Loader2 size={16} className="animate-spin" />
@@ -221,7 +327,7 @@ function ContactForm() {
             </>
           ) : (
             <>
-              Send message <ArrowUpRight size={16} className="btn-arrow" />
+              Send message <ArrowUpRight size={16} />
             </>
           )}
         </button>
@@ -232,28 +338,37 @@ function ContactForm() {
 
 export default function Contact() {
   return (
-    <section id="contact" aria-labelledby="contact-title" className="relative bg-[var(--bg)] section-y">
-      <div className="max-w-screen-container layout-padding">
-        <SectionHeading
-          index="06"
-          label="Contact"
-          aside="Replies within a couple of days"
-          id="contact-title"
-          title={
-            <>
-              Have something in mind? <em>Let&apos;s talk.</em>
-            </>
-          }
-        />
-        <div className="mt-16 md:mt-24 grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-10">
-          <div className="lg:col-span-7">
-            <EmailBlock />
-          </div>
-          <div className="lg:col-span-4 lg:col-start-9">
-            <ContactForm />
+    <>
+      <section id="contact" aria-labelledby="contact-title" className="relative overflow-hidden bg-[var(--bg)] border-t border-[var(--border)]">
+        <WaveBackdrop />
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[var(--bg)] via-[var(--bg)]/25 to-transparent" />
+        <div className="relative z-10 max-w-screen-container layout-padding section-y">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-14 lg:gap-16 items-start">
+            <div className="lg:col-span-6 flex flex-col gap-10">
+              <SectionHeading index="06" eyebrow="Get in touch" title={["Let's build", "the future."]} id="contact-title">
+                From concept to code, I engineer digital experiences that matter. Have a project in mind? Drop me a line.
+              </SectionHeading>
+              <HolographicCard />
+            </div>
+            <div className="lg:col-span-6">
+              <ContactForm />
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+        <div aria-hidden="true" className="relative z-10 overflow-hidden border-t border-[var(--border)] py-6 md:py-10">
+          <div className="marquee-track" style={{ "--marquee-duration": "40s" }}>
+            {Array.from({ length: 2 }).map((_, i) => (
+              <span
+                key={i}
+                className="whitespace-nowrap pr-12 text-[18vw] md:text-[11vw] font-black uppercase leading-none tracking-tighter text-transparent [-webkit-text-stroke:1px_var(--faint)]"
+              >
+                Let&apos;s work together ✦ Let&apos;s work together ✦&nbsp;
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+    </>
   );
 }

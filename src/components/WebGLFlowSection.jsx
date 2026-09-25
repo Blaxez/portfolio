@@ -3,8 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import Rule from "./ui/Rule";
-import Diagrams from "./strengths/Diagrams";
+import SectionHeading from "./ui/SectionHeading";
 import { prefersReducedMotion } from "@/lib/scroll";
 import { afterFirstPaint } from "@/lib/idle";
 
@@ -176,15 +175,55 @@ function useSmokeShader(canvasRef, activeRef, pulseRef) {
   }, [canvasRef, activeRef, pulseRef]);
 }
 
+/** The 3D particle structures, loaded when the section approaches. */
+function useStrengthsScene(ref, active) {
+  const sceneRef = useRef(null);
+  const activeRef = useRef(active);
+
+  useEffect(() => {
+    activeRef.current = active;
+    sceneRef.current?.setChapter(active);
+  }, [active]);
+
+  useEffect(() => {
+    const el = ref.current;
+    let cancelled = false;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        import("@/lib/three/StrengthsScene").then(({ mountStrengthsScene }) => {
+          if (cancelled) return;
+          const css = getComputedStyle(el);
+          sceneRef.current = mountStrengthsScene(el, {
+            bone: css.getPropertyValue("--fg").trim() || "#ece6da",
+            hot: css.getPropertyValue("--beam").trim() || "#ff5b22",
+          });
+          sceneRef.current?.setChapter(activeRef.current);
+        });
+      },
+      { rootMargin: "400px 0px" },
+    );
+    io.observe(el);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+      sceneRef.current?.destroy();
+      sceneRef.current = null;
+    };
+  }, [ref]);
+}
+
 export default function WebGLFlowSection() {
   const sectionRef = useRef(null);
   const canvasRef = useRef(null);
-  const barRef = useRef(null);
   const triggerRef = useRef(null);
   const activeRef = useRef(0);
   const pulseRef = useRef(0);
   const [active, setActive] = useState(0);
   const [pinned, setPinned] = useState(true);
+  const stageRef = useRef(null);
+  const barRef = useRef(null);
 
   useSmokeShader(canvasRef, activeRef, pulseRef);
 
@@ -207,7 +246,7 @@ export default function WebGLFlowSection() {
             pulseRef.current = 1;
             setActive(idx);
           }
-          if (barRef.current) barRef.current.style.transform = `scaleX(${progress})`;
+          if (barRef.current) barRef.current.style.transform = `scaleY(${progress})`;
         },
       });
     });
@@ -231,6 +270,7 @@ export default function WebGLFlowSection() {
   };
 
   const item = ITEMS[active];
+  useStrengthsScene(stageRef, active);
 
   return (
     <section
@@ -238,96 +278,79 @@ export default function WebGLFlowSection() {
       ref={sectionRef}
       aria-labelledby="strengths-title"
       className="stage-dark relative"
-      style={{ height: pinned ? `${ITEMS.length * 75 + 100}svh` : undefined }}
+      style={{ height: pinned ? `${ITEMS.length * 55 + 100}svh` : undefined }}
     >
-      <div className={`${pinned ? "sticky top-0 h-[100svh]" : "relative py-24"} overflow-hidden flex flex-col`}>
+      <div className={`${pinned ? "sticky top-0 h-[100svh]" : "relative min-h-[100svh] py-24"} overflow-hidden flex flex-col`}>
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" />
+        {/* 3D stage: upper half on phones, right side on desktop. Mouse-drag spins it. */}
+        <div
+          ref={stageRef}
+          aria-hidden="true"
+          data-cursor-label="Drag"
+          className="absolute inset-x-0 top-[13%] h-[44%] lg:top-0 lg:h-full lg:left-[41%] z-[1]"
+        />
 
-        <div className="relative z-10 max-w-screen-container layout-padding w-full pt-24 md:pt-28">
-          <Rule />
-          <div className="mt-4 flex items-baseline justify-between gap-6" data-reveal="up">
-            <span className="flex items-baseline gap-4">
-              <span className="index">(03)</span>
-              <span className="label">Practice</span>
-            </span>
-            <span className="label tabular">
-              {item.id} / {String(ITEMS.length).padStart(2, "0")}
-            </span>
-          </div>
-        </div>
+        <div className="relative z-10 max-w-screen-container layout-padding w-full flex-1 min-h-0 flex flex-col justify-end lg:justify-center pt-[clamp(5rem,12vh,7rem)] pb-[clamp(1.25rem,4vh,3rem)] pointer-events-none">
+          <div className="w-full lg:max-w-[42%] flex flex-col gap-[clamp(0.9rem,2.8vh,2rem)] pointer-events-auto">
+            <SectionHeading index="03" eyebrow="What I bring" title={["Core", "Strengths"]} id="strengths-title" compact />
+            <p className="hidden sm:block [@media(max-height:760px)]:hidden text-base md:text-lg text-[var(--muted)] leading-relaxed max-w-md" data-reveal="up">
+              I combine deep technical knowledge with creative problem-solving to deliver real-world solutions that scale.
+            </p>
 
-        <div className="relative z-10 max-w-screen-container layout-padding w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center py-6 md:py-10">
-          <div className="lg:col-span-5 flex flex-col gap-6 md:gap-10 order-2 lg:order-1">
-            <h2 id="strengths-title" className="title is-compact" data-split>
-              What I <em>bring</em> to a team.
-            </h2>
-            <ol className="flex flex-col">
-              {ITEMS.map((it, i) => {
-                const isActive = active === i;
-                return (
-                  <li key={it.id} className={`${isActive || !pinned ? "" : "hidden lg:block"} border-t border-[var(--line)] last:border-b`}>
-                    <button
-                      type="button"
-                      onClick={() => choose(i)}
-                      aria-current={isActive ? "step" : undefined}
-                      aria-expanded={isActive}
-                      className="group w-full text-left py-3 md:py-4"
-                    >
-                      <span className="flex items-baseline gap-5">
-                        <span className={`tabular text-[0.72rem] transition-colors ${isActive ? "text-[var(--signal)]" : "text-[var(--faint)]"}`}>{it.id}</span>
-                        <span
-                          className={`serif text-[1.7rem] md:text-[2.1rem] leading-none tracking-[-0.02em] transition-[color] duration-500 ${
-                            isActive ? "italic text-[var(--fg)]" : "text-[var(--faint)] group-hover:text-[var(--muted)]"
-                          }`}
-                        >
-                          {it.title}
-                        </span>
-                      </span>
-                      <AnimatePresence initial={false}>
-                        {isActive && (
-                          <motion.span
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                            className="block overflow-hidden"
-                          >
-                            <span className="block pt-3 pl-9 text-[0.98rem] text-[var(--muted)] max-w-md leading-relaxed">{it.desc}</span>
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-            {pinned ? (
-              <div className="flex items-center gap-2 lg:hidden" aria-hidden="true">
-                {ITEMS.map((it, i) => (
-                  <span key={it.id} className={`h-px flex-1 transition-colors duration-500 ${i <= active ? "bg-[var(--beam)]" : "bg-[var(--line-strong)]"}`} />
-                ))}
+            <div className="relative flex">
+              <div aria-hidden="true" className="hidden md:block absolute left-0 top-0 bottom-0 w-px bg-[var(--border)]">
+                <div ref={barRef} className="absolute inset-0 origin-top bg-[var(--acc)]" style={{ transform: "scaleY(0)" }} />
               </div>
+              <ol className="flex flex-col gap-0.5 w-full md:pl-6">
+                {ITEMS.map((it, i) => {
+                  const isActive = active === i;
+                  return (
+                    <li key={it.id} className={isActive || !pinned ? "" : "hidden lg:block"}>
+                      <button
+                        type="button"
+                        onClick={() => choose(i)}
+                        aria-current={isActive ? "step" : undefined}
+                        aria-expanded={isActive}
+                        className={`group w-full text-left rounded-2xl px-4 md:px-5 py-[clamp(0.35rem,1.1vh,0.85rem)] transition-[background-color,transform] duration-500 ${
+                          isActive ? "bg-white/[0.07] translate-x-2" : "hover:bg-white/[0.03]"
+                        }`}
+                      >
+                        <span className="flex items-baseline gap-4 md:gap-5">
+                          <span className={`font-mono text-xs transition-colors ${isActive ? "text-[var(--acc)]" : "text-[var(--muted)]"}`}>{it.id}</span>
+                          <span
+                            className={`text-[clamp(1.3rem,min(2.4vw,3.8vh),2.25rem)] font-bold uppercase tracking-tighter leading-none transition-colors duration-500 ${
+                              isActive ? "text-[var(--fg)]" : "text-[var(--faint)] group-hover:text-[var(--muted)]"
+                            }`}
+                          >
+                            {it.title}
+                          </span>
+                        </span>
+                        <AnimatePresence initial={false}>
+                          {isActive && (
+                            <motion.span
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                              className="block overflow-hidden"
+                            >
+                              <span className="block pt-2 pl-8 md:pl-10 text-sm md:text-[0.95rem] text-[var(--muted)] max-w-md leading-relaxed">{it.desc}</span>
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+            {pinned ? (
+              <p className="font-mono text-[10px] md:text-xs uppercase tracking-[0.25em] text-[var(--muted)]" aria-hidden="true">
+                {item.id} / {String(ITEMS.length).padStart(2, "0")} — keep scrolling
+              </p>
             ) : null}
           </div>
-
-          <figure className="lg:col-span-6 lg:col-start-7 order-1 lg:order-2 flex flex-col items-center">
-            <div className="w-full max-w-[min(34vh,300px)] sm:max-w-[min(44vh,420px)] lg:max-w-[min(62vh,540px)]">
-              <Diagrams active={active} />
-            </div>
-            <figcaption className="mt-3 w-full max-w-[min(62vh,540px)] hidden md:flex items-baseline justify-between gap-4">
-              <span className="index">Fig. {active + 2}</span>
-              <span className="label">{item.title}</span>
-            </figcaption>
-          </figure>
         </div>
-
-        {pinned ? (
-          <div className="relative z-10 max-w-screen-container layout-padding w-full pb-6 md:pb-8 hidden lg:block" aria-hidden="true">
-            <div className="h-px bg-[var(--line)] overflow-hidden">
-              <div ref={barRef} className="h-full origin-left bg-[var(--beam)]" style={{ transform: "scaleX(0)" }} />
-            </div>
-          </div>
-        ) : null}
       </div>
     </section>
   );

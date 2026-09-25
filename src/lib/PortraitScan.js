@@ -2,7 +2,8 @@
  * Portrait "scanned" by the laser. Above the scan line the photo is developed
  * (warm duotone); below it the raw signal shows as a 1-bit ordered dither. The
  * line itself glows and shears the image slightly. A lens under the pointer
- * shows the raw dither. Raw WebGL1, one draw call; renders only when something
+ * shows the raw dither. Saturated reds in the photo (not skin) keep their colour
+ * as the beam's signal colour, in both states. Raw WebGL1, one draw call; renders only when something
  * changes (scan moving, lens active) and only while on screen.
  */
 
@@ -61,19 +62,25 @@ void main() {
   uv.x += (hash(row + floor(uTime * 24.0)) - 0.5) * 0.035 * band;
 
   vec2 tuv = vec2(uv.x, 1.0 - uv.y);
-  float L = texture2D(uTex, tuv).r;
-  L = smoothstep(0.03, 0.97, L);
+  vec3 src = texture2D(uTex, tuv).rgb;
+  float L = smoothstep(0.03, 0.97, dot(src, vec3(0.299, 0.587, 0.114)));
+  // Strong, saturated red (the print on the hoodie) — skin and lips sit above 0.58 here.
+  float mx = max(src.g, src.b);
+  float red = (1.0 - smoothstep(0.42, 0.58, mx / max(src.r, 0.001)))
+            * smoothstep(0.15, 0.3, src.r - mx)
+            * smoothstep(0.25, 0.45, src.r);
   float vig = 1.0 - smoothstep(0.3, 0.95, length((vUv - vec2(0.5, 0.56)) * vec2(1.05, 0.95)) * 1.25);
   L *= mix(0.35, 1.0, vig);
 
   vec2 cell = floor(gl_FragCoord.xy / uCell);
-  float dith = step(bayer4(cell), L * 0.96);
-  vec3 raw = mix(uInk, uBone * 0.9, dith);
+  float dith = step(bayer4(cell), max(L * 0.96, red * 0.7));
+  vec3 raw = mix(uInk, mix(uBone * 0.9, uBeam, red), dith);
 
   float g = hash(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)) + uTime) * 0.05 - 0.025;
   vec3 dev = mix(uInk, uBone, pow(L, 1.15)) + g;
+  dev = mix(dev, uBeam * (0.55 + L * 0.6), red * 0.92);
   // Freshly scanned rows are still warm from the beam.
-  dev = mix(dev, dev * (0.6 + uBeam * 0.9), exp(-max(d, 0.0) * 9.0) * step(0.0, d) * 0.55 * step(uScan, 0.999));
+  dev = mix(dev, dev * (0.72 + uBeam * 0.45), exp(-max(d, 0.0) * 9.0) * step(0.0, d) * 0.45 * step(uScan, 0.999));
 
   vec2 px = vUv * uRes;
   float lens = uLens * (1.0 - smoothstep(uRes.x * 0.12, uRes.x * 0.2, distance(px, uMouse * uRes)));
@@ -147,7 +154,7 @@ export function mountPortraitScan(container, { src, ink = "#0b0a09", bone = "#ec
   img.onload = () => {
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
