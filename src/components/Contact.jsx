@@ -1,11 +1,12 @@
 "use client";
+import { warmup } from "@/lib/warmup";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, MapPin, ArrowUpRight, Github, Linkedin, MessageCircle, Check, Copy, Loader2 } from "lucide-react";
+import { Mail, MapPin, ArrowUpRight, Github, Linkedin, Check, Copy, Loader2 } from "lucide-react";
 import SectionHeading from "./ui/SectionHeading";
 import { SITE } from "@/lib/site";
 
-const SOCIAL_ICONS = { github: Github, linkedin: Linkedin, whatsapp: MessageCircle };
+const SOCIAL_ICONS = { github: Github, linkedin: Linkedin };
 
 /* ── Particle-wave backdrop (three.js, loaded when the section approaches) ── */
 function WaveBackdrop() {
@@ -18,23 +19,27 @@ function WaveBackdrop() {
       const css = getComputedStyle(document.documentElement);
       return [css.getPropertyValue("--beam").trim(), css.getPropertyValue("--acc-2").trim(), !document.documentElement.classList.contains("dark")];
     };
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        io.disconnect();
-        import("@/lib/three/ParticleWave").then(({ mountParticleWave }) => {
-          if (cancelled) return;
-          const [a, b, light] = colors();
-          wave = mountParticleWave(el, { colorA: a, colorB: b, light });
-        });
-      },
-      { rootMargin: "300px 0px" },
-    );
+    // Mounted in idle time right after load (see lib/warmup), or when the section
+    // approaches if the visitor gets there first — never mid-scroll when avoidable.
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      io.disconnect();
+      import("@/lib/three/ParticleWave").then(({ mountParticleWave }) => {
+        if (cancelled) return;
+        const [a, b, light] = colors();
+        wave = mountParticleWave(el, { colorA: a, colorB: b, light });
+      });
+    };
+    const io = new IntersectionObserver(([entry]) => entry.isIntersecting && start(), { rootMargin: "300px 0px" });
     io.observe(el);
+    const cancelWarm = warmup(start);
     const onTheme = () => wave?.setColors(...colors());
     window.addEventListener("themechange", onTheme);
     return () => {
       cancelled = true;
+      cancelWarm();
       io.disconnect();
       window.removeEventListener("themechange", onTheme);
       wave?.destroy();

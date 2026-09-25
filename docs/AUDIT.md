@@ -112,7 +112,7 @@ The original audit of the site as deployed from `master` is below. Every item ha
   - The laser beam runs through the bio text on mobile and tablet.
   - The bio is a single 60-word block.
   - The mascot is positioned by JS after load, so it pops in (CLS 0.04–0.07).
-- [ ] **Privacy (your call):** the WhatsApp number is still linked in the menu and contact card. Remove it from `SITE.socials` if you don't want it public. Originally flagged: the WhatsApp number is public in the menu. Intentional?
+- [x] ✅ **Privacy:** the WhatsApp number was public in the menu and contact card. → Removed from `SITE.socials` (menu, contact card and footer all read from it).
 - [x] ✅ **ScrollPersistence removed** (native restoration + Lenis). Previously ScrollPersistence restores the previous scroll position 100 ms after load, which fights hash links and the preloader. It also writes `sessionStorage` on every scroll event. `src/components/hooks/useScrollPersistence.js`
 
 ## P3 — Visual consistency

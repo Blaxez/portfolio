@@ -1,4 +1,5 @@
 "use client";
+import { warmup } from "@/lib/warmup";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -82,49 +83,53 @@ export default function Skills() {
     let engine;
     let st;
     let cancelled = false;
-    const load = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        load.disconnect();
-        import("@/lib/SkillsParticleSystem").then(({ SkillsParticleSystem }) => {
-          if (cancelled || !canvasRef.current) return;
-          try {
-            const css = getComputedStyle(section);
-            engine = new SkillsParticleSystem(canvasRef.current, SKILLS_DATA, {
-              color: css.getPropertyValue("--signal").trim() || "#ff5b22",
-              hot: css.getPropertyValue("--fg").trim() || "#ece6da",
-              bg: css.getPropertyValue("--bg").trim() || "#0b0a09",
-            });
-          } catch (e) {
-            console.error("Skills engine failed to start:", e);
-            return;
-          }
-          engineRef.current = engine;
-          engine.onSkillChange = (skill) => setActiveId(skill.id);
-          engine.loadSkill(indexOf(activeIdRef.current));
-          // Progress from the section's live geometry (same range as the trigger: top-bottom → bottom-top),
-          // so a jump straight into the section starts assembled rather than scattered.
-          const apply = () => {
-            const r = section.getBoundingClientRect();
-            const p = gsap.utils.clamp(0, 1, (window.innerHeight - r.top) / (r.height + window.innerHeight));
-            const enter = gsap.utils.clamp(0, 1, (p - 0.08) / 0.34);
-            const leave = gsap.utils.clamp(0, 1, (p - 0.78) / 0.22);
-            engine.setScatter(1 - enter * enter * (3 - 2 * enter) + leave * leave);
-          };
-          st = ScrollTrigger.create({ trigger: section, start: "top bottom", end: "bottom top", onUpdate: apply, onRefresh: apply });
-          // Arriving by a jump (menu link, reload mid-page) must not leave the logo scattered.
-          apply();
-        });
-      },
-      { rootMargin: "300px 0px" },
-    );
+    // Mounted in idle time right after load (see lib/warmup), or when the section
+    // approaches if the visitor gets there first — never mid-scroll when avoidable.
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      load.disconnect();
+      import("@/lib/SkillsParticleSystem").then(({ SkillsParticleSystem }) => {
+        if (cancelled || !canvasRef.current) return;
+        try {
+          const css = getComputedStyle(section);
+          engine = new SkillsParticleSystem(canvasRef.current, SKILLS_DATA, {
+            color: css.getPropertyValue("--signal").trim() || "#ff5b22",
+            hot: css.getPropertyValue("--fg").trim() || "#ece6da",
+            bg: css.getPropertyValue("--bg").trim() || "#0b0a09",
+          });
+        } catch (e) {
+          console.error("Skills engine failed to start:", e);
+          return;
+        }
+        engineRef.current = engine;
+        engine.onSkillChange = (skill) => setActiveId(skill.id);
+        engine.loadSkill(indexOf(activeIdRef.current));
+        // Progress from the section's live geometry (same range as the trigger: top-bottom → bottom-top),
+        // so a jump straight into the section starts assembled rather than scattered.
+        const apply = () => {
+          const r = section.getBoundingClientRect();
+          const p = gsap.utils.clamp(0, 1, (window.innerHeight - r.top) / (r.height + window.innerHeight));
+          const enter = gsap.utils.clamp(0, 1, (p - 0.08) / 0.34);
+          const leave = gsap.utils.clamp(0, 1, (p - 0.78) / 0.22);
+          engine.setScatter(1 - enter * enter * (3 - 2 * enter) + leave * leave);
+        };
+        st = ScrollTrigger.create({ trigger: section, start: "top bottom", end: "bottom top", onUpdate: apply, onRefresh: apply });
+        // Arriving by a jump (menu link, reload mid-page) must not leave the logo scattered.
+        apply();
+      });
+    };
+    const load = new IntersectionObserver(([entry]) => entry.isIntersecting && start(), { rootMargin: "300px 0px" });
     load.observe(section);
+    const cancelWarm = warmup(start);
 
     const vis = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.35 });
     vis.observe(section);
 
     return () => {
       cancelled = true;
+      cancelWarm();
       load.disconnect();
       vis.disconnect();
       st?.kill();

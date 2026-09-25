@@ -17,7 +17,6 @@ export const SITE = {
   socials: [
     { id: "github", label: "GitHub", href: "https://github.com/blaxezcode" },
     { id: "linkedin", label: "LinkedIn", href: "https://www.linkedin.com/in/santosh-maurya-a92988258" },
-    { id: "whatsapp", label: "WhatsApp", href: "https://wa.me/916394806825" },
   ],
 };
 

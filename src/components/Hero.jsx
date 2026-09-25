@@ -49,7 +49,8 @@ export default function Hero() {
         fogIntensity: 0.65,
         wispDensity: mobile ? 0.25 : 0.4,
         flowStrength: 0.58,
-        dpr: mobile ? 1 : undefined,
+        // The fog is soft: 1× (0.8× on phones) looks the same and is 2–4× cheaper on high-DPI screens.
+        dpr: mobile ? 0.8 : 1,
       });
     });
 
@@ -65,11 +66,10 @@ export default function Hero() {
     const dotGrid = sectionRef.current && window.matchMedia("(pointer: fine)").matches
       ? new DotGridBackground({
           container: sectionRef.current,
-          dotSpacing: 8,
+          dotSpacing: 11,
           baseRadius: 0.6,
-          maxRadius: 1,
-          influenceRadius: 560,
-          baseOpacity: 0.0,
+          maxRadius: 1.1,
+          influenceRadius: 360,
           maxOpacity: 0.55,
           color: "rgba(255, 91, 34, 1)",
         })

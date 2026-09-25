@@ -33,7 +33,7 @@ function Row({ items, reverse = false, outline = false, duration }) {
   // Two copies side by side; the track translates -50% for a seamless loop.
   const doubled = [...items, ...items];
   return (
-    <div className="overflow-hidden" aria-hidden="true">
+    <div className="overflow-hidden" aria-hidden="true" data-marquee-row>
       <div
         className="marquee-track gap-10 md:gap-20 items-center"
         data-reverse={reverse}

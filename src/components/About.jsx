@@ -1,4 +1,5 @@
 "use client";
+import { warmup } from "@/lib/warmup";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
@@ -54,32 +55,36 @@ function Portrait() {
     let scan;
     let st;
     let cancelled = false;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        io.disconnect();
-        import("@/lib/PortraitScan").then(({ mountPortraitScan }) => {
-          if (cancelled) return;
-          const css = getComputedStyle(el);
-          scan = mountPortraitScan(el, {
-            src: getAssetPath("/assets/portrait.webp"),
-            beam: css.getPropertyValue("--beam").trim() || "#ff5b22",
-          });
-          if (!scan || prefersReducedMotion()) return;
-          st = ScrollTrigger.create({
-            trigger: frameRef.current,
-            start: "top 85%",
-            end: "bottom 80%",
-            onUpdate: (self) => scan.setScan(self.progress),
-            onRefresh: (self) => scan.setScan(self.progress),
-          });
+    // Mounted in idle time right after load (see lib/warmup), or when the section
+    // approaches if the visitor gets there first — never mid-scroll when avoidable.
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      io.disconnect();
+      import("@/lib/PortraitScan").then(({ mountPortraitScan }) => {
+        if (cancelled) return;
+        const css = getComputedStyle(el);
+        scan = mountPortraitScan(el, {
+          src: getAssetPath("/assets/portrait.webp"),
+          beam: css.getPropertyValue("--beam").trim() || "#ff5b22",
         });
-      },
-      { rootMargin: "200px 0px" },
-    );
+        if (!scan || prefersReducedMotion()) return;
+        st = ScrollTrigger.create({
+          trigger: frameRef.current,
+          start: "top 85%",
+          end: "bottom 80%",
+          onUpdate: (self) => scan.setScan(self.progress),
+          onRefresh: (self) => scan.setScan(self.progress),
+        });
+      });
+    };
+    const io = new IntersectionObserver(([entry]) => entry.isIntersecting && start(), { rootMargin: "200px 0px" });
     io.observe(el);
+    const cancelWarm = warmup(start);
     return () => {
       cancelled = true;
+      cancelWarm();
       io.disconnect();
       st?.kill();
       scan?.destroy();

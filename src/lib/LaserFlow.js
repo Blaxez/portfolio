@@ -409,18 +409,18 @@ export default class LaserFlow {
         this.fpsSamples.reduce((sum, v) => sum + v, 0) / this.fpsSamples.length;
 
       const lowerThresh = 50;
-      const upperThresh = 58;
-      const dprFloor = 0.6;
+      const dprFloor = 0.65;
       let next = this.currentDpr;
       const base = this.baseDpr;
 
+      // Step down only: scaling back up re-allocates the drawing buffer and
+      // makes the quality oscillate (a periodic hitch) whenever fps hovers
+      // around the threshold, e.g. while other scenes render mid-scroll.
       if (avgFps < lowerThresh) {
         next = clamp(this.currentDpr * 0.85, dprFloor, base);
-      } else if (avgFps > upperThresh && this.currentDpr < base) {
-        next = clamp(this.currentDpr * 1.1, dprFloor, base);
       }
 
-      const cooldown = 2000;
+      const cooldown = 3000;
       if (
         Math.abs(next - this.currentDpr) > 0.01 &&
         now - this.lastDprChange > cooldown
@@ -502,10 +502,12 @@ export default class LaserFlow {
       stencil: false,
       powerPreference: "high-performance",
       premultipliedAlpha: false,
-      preserveDrawingBuffer: true,
+      // Nothing reads the canvas back; preserving it forces a full copy every frame.
+      preserveDrawingBuffer: false,
       failIfMajorPerformanceCaveat: false,
       logarithmicDepthBuffer: false,
     });
+    this.renderer.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
 
     this.baseDpr = Math.min(
       this.options.dpr ?? (window.devicePixelRatio || 1),

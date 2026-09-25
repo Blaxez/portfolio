@@ -47,6 +47,53 @@ function untilt(e) {
   el.style.setProperty("--rx", "0deg");
 }
 
+/**
+ * A generated cover: no third-party image requests (GitHub's preview service
+ * rate-limits bursts with 429s), always on-brand, and it carries the facts the
+ * preview card would have shown. The initials layer drifts with the gallery.
+ */
+function ProjectCover({ project, index }) {
+  const color = LANG_COLORS[project.language] || "var(--acc)";
+  const initials = project.title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("");
+  return (
+    <div
+      className="relative aspect-[2/1] overflow-hidden bg-[#0e0c0a]"
+      style={{
+        backgroundImage: `radial-gradient(circle at 78% 28%, color-mix(in srgb, ${color} 38%, transparent), transparent 55%), radial-gradient(circle at 12% 110%, rgba(var(--acc-rgb), 0.22), transparent 50%)`,
+      }}
+      aria-hidden="true"
+    >
+      <div
+        className="absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: "linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      <div className="project-img absolute inset-y-0 -left-[8%] w-[116%] flex items-center justify-end pr-[17%] transition-transform duration-700 group-hover:scale-105">
+        <span
+          className="font-[family-name:var(--font-display)] text-[clamp(4.5rem,9vw,8.5rem)] leading-none uppercase text-transparent select-none"
+          style={{ WebkitTextStroke: `1.5px color-mix(in srgb, ${color} 70%, #ffffff)`, opacity: 0.55 }}
+        >
+          {initials}
+        </span>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[var(--surface)] to-transparent" />
+      <span className="absolute top-4 left-4 rounded-full bg-black/60 px-3 py-1 font-mono text-[11px] tracking-widest text-white">
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <span className="absolute top-4 right-4 max-w-[60%] truncate font-mono text-[10px] uppercase tracking-widest text-white/70">
+        {project.owner}/{project.name}
+      </span>
+    </div>
+  );
+}
+
 function ProjectCard({ project, index }) {
   const color = LANG_COLORS[project.language] || "var(--acc)";
   return (
@@ -57,23 +104,7 @@ function ProjectCard({ project, index }) {
         onPointerLeave={untilt}
         data-cursor-label="View"
       >
-        <div className="relative aspect-[2/1] overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(var(--acc-rgb),0.35),transparent_60%),linear-gradient(135deg,#0f172a,#1e1b4b)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={project.image}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="project-img absolute inset-0 h-full w-[116%] max-w-none -left-[8%] object-cover transition-[filter,transform] duration-700 group-hover:scale-105"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-transparent" />
-          <span className="absolute top-4 left-4 rounded-full bg-black/60 backdrop-blur px-3 py-1 font-mono text-[11px] tracking-widest text-white">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-        </div>
+        <ProjectCover project={project} index={index} />
 
         <div className="relative flex flex-1 flex-col gap-[clamp(0.6rem,1.6vh,1rem)] p-[clamp(1.1rem,2.6vh,2rem)]">
           <div className="flex items-center gap-4 font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">

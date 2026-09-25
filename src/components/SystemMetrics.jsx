@@ -66,7 +66,7 @@ function useCanvasLoop(canvasRef, draw, deps) {
 }
 
 /* ── Globe: a dot sphere; a beam of light rises from Mumbai ── */
-const N = 900;
+const N = 640;
 const DOTS = Array.from({ length: N }, (_, i) => {
   const phi = Math.acos(1 - (2 * (i + 0.5)) / N);
   const theta = Math.PI * (1 + Math.sqrt(5)) * i;
@@ -88,6 +88,10 @@ function GlobeCanvas({ pal }) {
     let h = 0;
     // Start with Mumbai facing the viewer, a little off-centre.
     const rot0 = -LON + Math.PI / 2 - 0.5;
+    const LEVELS = 6;
+    const buckets = Array.from({ length: LEVELS }, () => []);
+    const styles = Array.from({ length: LEVELS }, (_, i) => `rgba(${pal.fg}, ${(0.12 + ((i + 0.5) / LEVELS) * 0.55).toFixed(3)})`);
+    let lastDraw = 0;
 
     const size = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -118,12 +122,18 @@ function GlobeCanvas({ pal }) {
       const cx = w / 2;
       const cy = h * 0.56;
 
+      // Batch dots by brightness: a few fillStyle changes instead of one per dot.
+      for (const b of buckets) b.length = 0;
       for (const d of DOTS) {
         const [x, y, z] = project(d, rot, tilt);
         if (z < -0.1) continue;
-        const a = 0.12 + Math.max(0, z) * 0.55;
-        ctx.fillStyle = `rgba(${pal.fg}, ${a})`;
-        ctx.fillRect(cx + x * r - 0.8, cy - y * r - 0.8, 1.6, 1.6);
+        buckets[Math.min(LEVELS - 1, Math.floor(Math.max(0, z) * LEVELS))].push(cx + x * r - 0.8, cy - y * r - 0.8);
+      }
+      for (let l = 0; l < LEVELS; l++) {
+        const list = buckets[l];
+        if (!list.length) continue;
+        ctx.fillStyle = styles[l];
+        for (let k = 0; k < list.length; k += 2) ctx.fillRect(list[k], list[k + 1], 1.6, 1.6);
       }
 
       const [hx, hy, hz] = project(HOME, rot, tilt);
@@ -156,7 +166,11 @@ function GlobeCanvas({ pal }) {
     };
 
     const loop = (t) => {
-      draw(t);
+      // A slow rotation reads the same at 30fps; half the draws.
+      if (t - lastDraw > 32) {
+        lastDraw = t;
+        draw(t);
+      }
       if (visible && !reduced) raf = requestAnimationFrame(loop);
     };
     const ro = new ResizeObserver(() => {

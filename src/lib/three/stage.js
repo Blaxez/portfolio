@@ -11,6 +11,7 @@ export function createStage(container, { fov = 35, z = 6, dprCap = 1.5, antialia
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const renderer = new THREE.WebGLRenderer({ antialias: antialias && !isMobile, alpha: true, powerPreference: "high-performance" });
+  renderer.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : dprCap));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
