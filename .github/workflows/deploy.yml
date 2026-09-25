@@ -1,21 +1,22 @@
 name: Deploy to GitHub Pages
 
+# Builds the static export and commits it to the gh-pages branch, which
+# GitHub Pages serves (Settings → Pages → Deploy from a branch: gh-pages).
+
 on:
   push:
     branches: [master]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,16 +32,24 @@ jobs:
           # Optional: a JSON form endpoint (e.g. Formspree). Unset → the contact form opens a pre-filled email.
           NEXT_PUBLIC_FORM_ENDPOINT: ${{ vars.NEXT_PUBLIC_FORM_ENDPOINT }}
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: out
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to gh-pages
+        run: |
+          set -euo pipefail
+          touch out/.nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin gh-pages; then
+            git worktree add --detach site FETCH_HEAD
+          else
+            git worktree add --detach site
+            git -C site checkout --orphan gh-pages
+          fi
+          find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a out/. site/
+          git -C site add -A
+          if git -C site diff --cached --quiet; then
+            echo "gh-pages already up to date"
+            exit 0
+          fi
+          git -C site commit -q -m "Deploy ${GITHUB_SHA::7} from master"
+          git -C site push origin HEAD:refs/heads/gh-pages
