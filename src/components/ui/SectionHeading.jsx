@@ -15,7 +15,7 @@ export default function SectionHeading({ index, label, aside, title, id, compact
         </span>
         {aside ? <span className="label hidden md:block text-right">{aside}</span> : null}
       </div>
-      <h2 id={id} className={`title ${compact ? "is-compact" : ""} mt-10 md:mt-14`} data-split>
+      <h2 id={id} className={`title ${compact ? "is-compact mt-[clamp(1rem,3.5vh,3rem)]" : "mt-10 md:mt-14"}`} data-split>
         {title}
       </h2>
       {children ? (

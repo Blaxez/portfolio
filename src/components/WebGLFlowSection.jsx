@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Rule from "./ui/Rule";
-import Diagrams from "./strengths/Diagrams";
 import { prefersReducedMotion } from "@/lib/scroll";
 import { afterFirstPaint } from "@/lib/idle";
 
@@ -176,15 +175,54 @@ function useSmokeShader(canvasRef, activeRef, pulseRef) {
   }, [canvasRef, activeRef, pulseRef]);
 }
 
+/** The 3D particle structures, loaded when the section approaches. */
+function useStrengthsScene(ref, active) {
+  const sceneRef = useRef(null);
+  const activeRef = useRef(active);
+
+  useEffect(() => {
+    activeRef.current = active;
+    sceneRef.current?.setChapter(active);
+  }, [active]);
+
+  useEffect(() => {
+    const el = ref.current;
+    let cancelled = false;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        import("@/lib/three/StrengthsScene").then(({ mountStrengthsScene }) => {
+          if (cancelled) return;
+          const css = getComputedStyle(el);
+          sceneRef.current = mountStrengthsScene(el, {
+            bone: css.getPropertyValue("--fg").trim() || "#ece6da",
+            hot: css.getPropertyValue("--beam").trim() || "#ff5b22",
+          });
+          sceneRef.current?.setChapter(activeRef.current);
+        });
+      },
+      { rootMargin: "400px 0px" },
+    );
+    io.observe(el);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+      sceneRef.current?.destroy();
+      sceneRef.current = null;
+    };
+  }, [ref]);
+}
+
 export default function WebGLFlowSection() {
   const sectionRef = useRef(null);
   const canvasRef = useRef(null);
-  const barRef = useRef(null);
   const triggerRef = useRef(null);
   const activeRef = useRef(0);
   const pulseRef = useRef(0);
   const [active, setActive] = useState(0);
   const [pinned, setPinned] = useState(true);
+  const stageRef = useRef(null);
 
   useSmokeShader(canvasRef, activeRef, pulseRef);
 
@@ -207,7 +245,6 @@ export default function WebGLFlowSection() {
             pulseRef.current = 1;
             setActive(idx);
           }
-          if (barRef.current) barRef.current.style.transform = `scaleX(${progress})`;
         },
       });
     });
@@ -231,6 +268,7 @@ export default function WebGLFlowSection() {
   };
 
   const item = ITEMS[active];
+  useStrengthsScene(stageRef, active);
 
   return (
     <section
@@ -238,12 +276,19 @@ export default function WebGLFlowSection() {
       ref={sectionRef}
       aria-labelledby="strengths-title"
       className="stage-dark relative"
-      style={{ height: pinned ? `${ITEMS.length * 75 + 100}svh` : undefined }}
+      style={{ height: pinned ? `${ITEMS.length * 60 + 100}svh` : undefined }}
     >
-      <div className={`${pinned ? "sticky top-0 h-[100svh]" : "relative py-24"} overflow-hidden flex flex-col`}>
+      <div className={`${pinned ? "sticky top-0 h-[100svh]" : "relative min-h-[100svh] py-24"} overflow-hidden flex flex-col`}>
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" />
+        {/* 3D stage: upper half on phones, right side on desktop. Mouse-drag spins it. */}
+        <div
+          ref={stageRef}
+          aria-hidden="true"
+          data-cursor-label="Drag"
+          className="absolute inset-x-0 top-[13%] h-[44%] lg:top-0 lg:h-full lg:left-[41%] z-[1]"
+        />
 
-        <div className="relative z-10 max-w-screen-container layout-padding w-full pt-24 md:pt-28">
+        <div className="relative z-10 max-w-screen-container layout-padding w-full pt-[clamp(4.75rem,11vh,6.5rem)] pointer-events-none">
           <Rule />
           <div className="mt-4 flex items-baseline justify-between gap-6" data-reveal="up">
             <span className="flex items-baseline gap-4">
@@ -256,9 +301,9 @@ export default function WebGLFlowSection() {
           </div>
         </div>
 
-        <div className="relative z-10 max-w-screen-container layout-padding w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center py-6 md:py-10">
-          <div className="lg:col-span-5 flex flex-col gap-6 md:gap-10 order-2 lg:order-1">
-            <h2 id="strengths-title" className="title is-compact" data-split>
+        <div className="relative z-10 max-w-screen-container layout-padding w-full flex-1 min-h-0 flex flex-col justify-end lg:justify-center pb-[clamp(1.25rem,4vh,3rem)] pointer-events-none">
+          <div className="w-full lg:max-w-[40%] flex flex-col gap-[clamp(0.9rem,3vh,2.25rem)] pointer-events-auto">
+            <h2 id="strengths-title" className="title !text-[clamp(2rem,min(4.4vw,7vh),4.5rem)]" data-split>
               What I <em>bring</em> to a team.
             </h2>
             <ol className="flex flex-col">
@@ -271,12 +316,12 @@ export default function WebGLFlowSection() {
                       onClick={() => choose(i)}
                       aria-current={isActive ? "step" : undefined}
                       aria-expanded={isActive}
-                      className="group w-full text-left py-3 md:py-4"
+                      className="group w-full text-left py-[clamp(0.4rem,1.2vh,0.95rem)]"
                     >
                       <span className="flex items-baseline gap-5">
                         <span className={`tabular text-[0.72rem] transition-colors ${isActive ? "text-[var(--signal)]" : "text-[var(--faint)]"}`}>{it.id}</span>
                         <span
-                          className={`serif text-[1.7rem] md:text-[2.1rem] leading-none tracking-[-0.02em] transition-[color] duration-500 ${
+                          className={`serif text-[clamp(1.35rem,min(2.3vw,3.7vh),2.1rem)] leading-none tracking-[-0.02em] transition-[color] duration-500 ${
                             isActive ? "italic text-[var(--fg)]" : "text-[var(--faint)] group-hover:text-[var(--muted)]"
                           }`}
                         >
@@ -292,7 +337,7 @@ export default function WebGLFlowSection() {
                             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                             className="block overflow-hidden"
                           >
-                            <span className="block pt-3 pl-9 text-[0.98rem] text-[var(--muted)] max-w-md leading-relaxed">{it.desc}</span>
+                            <span className="block pt-2 pl-9 text-[0.95rem] text-[var(--muted)] max-w-md leading-relaxed">{it.desc}</span>
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -302,32 +347,14 @@ export default function WebGLFlowSection() {
               })}
             </ol>
             {pinned ? (
-              <div className="flex items-center gap-2 lg:hidden" aria-hidden="true">
+              <div className="flex items-center gap-2" aria-hidden="true">
                 {ITEMS.map((it, i) => (
                   <span key={it.id} className={`h-px flex-1 transition-colors duration-500 ${i <= active ? "bg-[var(--beam)]" : "bg-[var(--line-strong)]"}`} />
                 ))}
               </div>
             ) : null}
           </div>
-
-          <figure className="lg:col-span-6 lg:col-start-7 order-1 lg:order-2 flex flex-col items-center">
-            <div className="w-full max-w-[min(34vh,300px)] sm:max-w-[min(44vh,420px)] lg:max-w-[min(62vh,540px)]">
-              <Diagrams active={active} />
-            </div>
-            <figcaption className="mt-3 w-full max-w-[min(62vh,540px)] hidden md:flex items-baseline justify-between gap-4">
-              <span className="index">Fig. {active + 2}</span>
-              <span className="label">{item.title}</span>
-            </figcaption>
-          </figure>
         </div>
-
-        {pinned ? (
-          <div className="relative z-10 max-w-screen-container layout-padding w-full pb-6 md:pb-8 hidden lg:block" aria-hidden="true">
-            <div className="h-px bg-[var(--line)] overflow-hidden">
-              <div ref={barRef} className="h-full origin-left bg-[var(--beam)]" style={{ transform: "scaleX(0)" }} />
-            </div>
-          </div>
-        ) : null}
       </div>
     </section>
   );

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Pause, Play } from "lucide-react";
+import { getAssetPath } from "@/lib/assets";
 import Rule from "./ui/Rule";
 import { prefersReducedMotion } from "@/lib/scroll";
 
@@ -39,7 +40,6 @@ const SKILLS_DATA = [
 ];
 
 const CATEGORIES = ["All", ...new Set(SKILLS_DATA.map((s) => s.category))];
-const COUNTS = Object.fromEntries(CATEGORIES.map((c) => [c, c === "All" ? SKILLS_DATA.length : SKILLS_DATA.filter((s) => s.category === c).length]));
 const AUTO_PLAY_DELAY = 4000;
 const indexOf = (id) => SKILLS_DATA.findIndex((s) => s.id === id);
 
@@ -92,8 +92,8 @@ export default function Skills() {
           try {
             const css = getComputedStyle(section);
             engine = new SkillsParticleSystem(canvasRef.current, SKILLS_DATA, {
-              color: css.getPropertyValue("--fg").trim() || "#ece6da",
-              hot: css.getPropertyValue("--beam").trim() || "#ff5b22",
+              color: css.getPropertyValue("--signal").trim() || "#ff5b22",
+              hot: css.getPropertyValue("--fg").trim() || "#ece6da",
               bg: css.getPropertyValue("--bg").trim() || "#0b0a09",
             });
           } catch (e) {
@@ -103,14 +103,18 @@ export default function Skills() {
           engineRef.current = engine;
           engine.onSkillChange = (skill) => setActiveId(skill.id);
           engine.loadSkill(indexOf(activeIdRef.current));
-          const apply = ({ progress: p }) => {
+          // Progress from the section's live geometry (same range as the trigger: top-bottom → bottom-top),
+          // so a jump straight into the section starts assembled rather than scattered.
+          const apply = () => {
+            const r = section.getBoundingClientRect();
+            const p = gsap.utils.clamp(0, 1, (window.innerHeight - r.top) / (r.height + window.innerHeight));
             const enter = gsap.utils.clamp(0, 1, (p - 0.08) / 0.34);
             const leave = gsap.utils.clamp(0, 1, (p - 0.78) / 0.22);
             engine.setScatter(1 - enter * enter * (3 - 2 * enter) + leave * leave);
           };
           st = ScrollTrigger.create({ trigger: section, start: "top bottom", end: "bottom top", onUpdate: apply, onRefresh: apply });
           // Arriving by a jump (menu link, reload mid-page) must not leave the logo scattered.
-          apply(st);
+          apply();
         });
       },
       { rootMargin: "300px 0px" },
@@ -160,48 +164,49 @@ export default function Skills() {
       id="skills"
       ref={sectionRef}
       aria-labelledby="skills-title"
-      className="stage-dark relative h-[100svh] min-h-[680px] overflow-hidden select-none"
+      className="stage-dark relative h-[100svh] min-h-[620px] overflow-hidden select-none"
     >
       <div ref={canvasRef} className="absolute inset-0 z-[1]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 z-[2] bg-gradient-to-b from-[var(--bg)] to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[52%] z-[2] bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/85 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-[2] bg-gradient-to-b from-[var(--bg)] to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 z-[2] bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/85 to-transparent" />
 
       <div className="absolute inset-0 z-[5] pointer-events-none flex flex-col justify-between">
-        <div className="max-w-screen-container layout-padding w-full pt-24 md:pt-28">
+        <div className="max-w-screen-container layout-padding w-full pt-20 md:pt-24">
           <Rule />
           <div className="mt-4 flex items-baseline justify-between gap-6" data-reveal="up">
             <span className="flex items-baseline gap-4">
               <span className="index">(02)</span>
-              <h2 id="skills-title" className="label">
-                Stack
-              </h2>
+              <span className="label">Skills</span>
             </span>
-            <span className="label hidden md:block">
-              {SKILLS_DATA.length} tools · {CATEGORIES.length - 1} disciplines
-            </span>
+            <h2 id="skills-title" className="serif text-2xl md:text-3xl tracking-[-0.02em] text-[var(--fg)]">
+              Tech <em>stack</em>
+            </h2>
           </div>
 
-          <div className="mt-8 md:mt-12 h-[150px] md:h-[210px]">
+          <div className="mt-6 md:mt-10 h-[104px] md:h-[136px]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={current.id}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -18 }}
-                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -16, filter: "blur(6px)" }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
               >
                 <p className="label !text-[var(--signal)]">{current.category}</p>
-                <p className="serif mt-3 text-[3.6rem] md:text-[7.5rem] leading-[0.9] tracking-[-0.035em] text-[var(--fg)]">
+                <p
+                  className="mt-2 font-[family-name:var(--font-display)] text-[2.9rem] md:text-7xl uppercase tracking-[0.04em] leading-none text-[var(--fg)]"
+                  style={{ textShadow: "0 0 40px rgba(255, 91, 34, 0.35), 0 2px 10px rgba(0,0,0,0.8)" }}
+                >
                   {current.label}
                 </p>
-                <p className="mt-4 text-[0.98rem] md:text-[1.05rem] text-[var(--muted)]">{current.details}</p>
+                <p className="mt-2 text-sm md:text-base text-[var(--muted)]">{current.details}</p>
               </motion.div>
             </AnimatePresence>
           </div>
         </div>
 
         <div
-          className="pointer-events-auto max-w-screen-container layout-padding w-full pb-7 md:pb-10"
+          className="pointer-events-auto max-w-screen-container layout-padding w-full pb-6 md:pb-8"
           onPointerEnter={() => setHeld(true)}
           onPointerLeave={() => setHeld(false)}
           onFocus={() => setHeld(true)}
@@ -209,22 +214,21 @@ export default function Skills() {
             if (!e.currentTarget.contains(e.relatedTarget)) setHeld(false);
           }}
         >
-          <div className="flex items-center justify-between gap-6 border-t border-[var(--line)] pt-3">
-            <div role="group" aria-label="Filter skills by category" className="flex gap-5 md:gap-8 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-3 mb-3">
+            <div role="group" aria-label="Filter skills by category" className="flex gap-1.5 md:gap-2 overflow-x-auto scrollbar-none py-1 min-w-0">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   aria-pressed={category === cat}
                   onClick={() => chooseCategory(cat)}
-                  className="group relative inline-flex min-h-11 items-center whitespace-nowrap text-[0.92rem] text-[var(--muted)] transition-colors hover:text-[var(--fg)] aria-pressed:text-[var(--fg)]"
+                  className={`min-h-9 text-[0.7rem] md:text-[0.74rem] font-medium uppercase tracking-[0.12em] px-3.5 md:px-4 border rounded-full whitespace-nowrap transition-colors duration-300 ${
+                    category === cat
+                      ? "border-[var(--signal)] text-[var(--signal)] bg-[rgba(var(--signal-rgb),0.1)]"
+                      : "border-[var(--line)] text-[var(--muted)] hover:text-[var(--fg)] hover:border-[var(--line-strong)]"
+                  }`}
                 >
                   {cat}
-                  <sup className="ml-0.5 -top-2 text-[0.6rem] tabular text-[var(--faint)] group-aria-pressed:text-[var(--signal)]">{COUNTS[cat]}</sup>
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-0 right-2 bottom-2 h-px origin-left scale-x-0 bg-[var(--beam)] transition-transform duration-500 group-aria-pressed:scale-x-100"
-                  />
                 </button>
               ))}
             </div>
@@ -232,51 +236,44 @@ export default function Skills() {
               type="button"
               onClick={() => setPlaying((p) => !p)}
               aria-label={playing ? "Pause skill slideshow" : "Play skill slideshow"}
-              className="label inline-flex min-h-11 flex-shrink-0 items-center gap-2 transition-colors hover:text-[var(--fg)]"
+              className="ml-auto flex-shrink-0 w-9 h-9 rounded-full border border-[var(--line)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--fg)] hover:border-[var(--line-strong)] transition-colors"
             >
-              {playing ? <Pause size={12} aria-hidden="true" /> : <Play size={12} aria-hidden="true" />}
-              <span aria-hidden="true">{playing ? "Pause" : "Play"}</span>
+              {playing ? <Pause size={14} /> : <Play size={14} />}
             </button>
           </div>
 
-          <div
-            ref={pillsRef}
-            role="group"
-            aria-label="Skills"
-            className="mt-2 flex md:flex-wrap gap-x-0 overflow-x-auto md:overflow-visible scrollbar-none"
-          >
-            {filtered.map((item, i) => {
+          <div ref={pillsRef} role="group" aria-label="Skills" className="flex gap-1.5 md:gap-2 overflow-x-auto py-3 -my-3 px-1 scrollbar-none">
+            {filtered.map((item) => {
               const isActive = item.id === activeId;
+              const icon = `url(${getAssetPath(`/assets/skills/${item.icon}`)})`;
               return (
                 <button
                   key={item.id}
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => select(item.id)}
-                  className="group relative inline-flex min-h-11 flex-shrink-0 items-center whitespace-nowrap pr-3 text-[1rem] md:text-[1.06rem]"
+                  className={`group relative flex items-center gap-2 min-h-11 px-3 md:px-4 border rounded-xl whitespace-nowrap transition-[border-color,background-color,color,transform] duration-300 flex-shrink-0 ${
+                    isActive
+                      ? "border-[var(--signal)] bg-[rgba(var(--signal-rgb),0.12)] text-[var(--signal)] shadow-[0_0_24px_rgba(var(--signal-rgb),0.25)]"
+                      : "border-[var(--line)] bg-[var(--surface)]/90 text-[var(--muted)] hover:text-[var(--fg)] hover:border-[var(--line-strong)] hover:-translate-y-0.5"
+                  }`}
                 >
                   <span
-                    className={`transition-colors duration-300 ${
-                      isActive ? "text-[var(--signal)]" : "text-[var(--muted)] group-hover:text-[var(--fg)]"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                  {i < filtered.length - 1 ? (
-                    <span aria-hidden="true" className="pl-3 text-[var(--faint)]">
-                      /
-                    </span>
-                  ) : null}
+                    aria-hidden="true"
+                    className="h-4 w-4 flex-shrink-0 bg-current"
+                    style={{ WebkitMaskImage: icon, maskImage: icon, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat" }}
+                  />
+                  <span className={`text-[0.72rem] md:text-[0.76rem] font-medium uppercase tracking-[0.08em]`}>{item.label}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="mt-4 flex items-center justify-between label">
+          <div className="flex justify-between items-center mt-3 px-1 label">
             <span aria-hidden="true" className="tabular">
               {String(Math.max(position, 0) + 1).padStart(2, "0")} / {String(filtered.length).padStart(2, "0")}
             </span>
-            <span className="hidden md:block">Move through the particles — pick a skill</span>
+            <span className="hidden md:block">Move through the particles · Pick a skill</span>
             <span className="md:hidden">Tap a skill</span>
           </div>
         </div>

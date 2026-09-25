@@ -2,9 +2,10 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import SmoothScroll from "@/components/providers/SmoothScroll";
 import Cursor from "@/components/fx/Cursor";
+import LightTrail from "@/components/fx/LightTrail";
 import { getAssetPath } from "@/lib/assets";
 import { SITE } from "@/lib/site";
-import { Instrument_Serif, Instrument_Sans } from "next/font/google";
+import { Anton, Instrument_Serif, Instrument_Sans } from "next/font/google";
 
 const serif = Instrument_Serif({
   weight: "400",
@@ -13,6 +14,7 @@ const serif = Instrument_Serif({
   display: "swap",
   variable: "--font-instrument-serif",
 });
+const anton = Anton({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-anton" });
 const sans = Instrument_Sans({ subsets: ["latin"], display: "swap", variable: "--font-instrument-sans" });
 
 const title = `${SITE.name} — ${SITE.role}`;
@@ -37,7 +39,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`dark ${serif.variable} ${sans.variable}`}
+      className={`dark ${anton.variable} ${serif.variable} ${sans.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -47,6 +49,7 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <SmoothScroll />
           <Cursor />
+          <LightTrail />
           <div
             aria-hidden="true"
             className="grain"

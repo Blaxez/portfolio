@@ -29,18 +29,30 @@ export default function MotionDirector() {
       if (cancelled) return;
       ctx = gsap.context(() => {
         gsap.utils.toArray("[data-split]").forEach((el) => {
+          // Line masks clip only while the lines rise; at rest they open up so
+          // descenders and italic overhangs are never cut.
+          const release = (self) => (self.masks || [...el.children]).forEach((m) => (m.style.overflow = "visible"));
           SplitText.create(el, {
             type: "lines",
             mask: "lines",
             autoSplit: true,
-            onSplit: (self) =>
-              gsap.from(self.lines, {
-                yPercent: 105,
+            onSplit: (self) => {
+              if (el.dataset.revealed) {
+                release(self);
+                return;
+              }
+              return gsap.from(self.lines, {
+                yPercent: 118,
                 duration: 1.25,
                 ease: "expo.out",
                 stagger: 0.09,
                 scrollTrigger: { trigger: el, start: "top 88%", once: true },
-              }),
+                onComplete: () => {
+                  el.dataset.revealed = "1";
+                  release(self);
+                },
+              });
+            },
           });
         });
 

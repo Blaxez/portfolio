@@ -1,9 +1,45 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Check, Loader2 } from "lucide-react";
 import SectionHeading from "./ui/SectionHeading";
 import LocalTime from "./ui/LocalTime";
 import { SITE } from "@/lib/site";
+
+/* ── Particle-wave terrain behind the section (three.js, loaded when it approaches) ── */
+function WaveBackdrop() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    let wave;
+    let cancelled = false;
+    const colors = () => {
+      const css = getComputedStyle(document.documentElement);
+      return [css.getPropertyValue("--beam").trim(), css.getPropertyValue("--fg").trim(), !document.documentElement.classList.contains("dark")];
+    };
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        import("@/lib/three/ParticleWave").then(({ mountParticleWave }) => {
+          if (cancelled) return;
+          const [a, b, light] = colors();
+          wave = mountParticleWave(el, { colorA: a, colorB: b, light });
+        });
+      },
+      { rootMargin: "300px 0px" },
+    );
+    io.observe(el);
+    const onTheme = () => wave?.setColors(...colors());
+    window.addEventListener("themechange", onTheme);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+      window.removeEventListener("themechange", onTheme);
+      wave?.destroy();
+    };
+  }, []);
+  return <div ref={ref} aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[70%] md:h-[85%] pointer-events-none" />;
+}
 
 function EmailBlock() {
   const [copyState, setCopyState] = useState("idle");
@@ -22,7 +58,7 @@ function EmailBlock() {
       <p className="label">Write to me</p>
       <a
         href={`mailto:${SITE.email}`}
-        className="group mt-5 block w-fit max-w-full serif text-[1.55rem] sm:text-[2.2rem] lg:text-[2.9rem] leading-[1.05] tracking-[-0.02em] text-[var(--fg)] [overflow-wrap:anywhere] transition-colors hover:text-[var(--signal)]"
+        className="group mt-5 block w-fit max-w-full serif text-[clamp(1.1rem,6vw,2.2rem)] lg:text-[clamp(2rem,2.6vw,2.9rem)] leading-[1.1] tracking-[-0.02em] text-[var(--fg)] whitespace-nowrap transition-colors hover:text-[var(--signal)]"
         data-cursor-label="Write"
       >
         {SITE.email}
@@ -232,8 +268,11 @@ function ContactForm() {
 
 export default function Contact() {
   return (
-    <section id="contact" aria-labelledby="contact-title" className="relative bg-[var(--bg)] section-y">
-      <div className="max-w-screen-container layout-padding">
+    <section id="contact" aria-labelledby="contact-title" className="relative overflow-hidden bg-[var(--bg)] section-y">
+      <WaveBackdrop />
+      {/* Keeps the copy readable over the terrain. */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[var(--bg)] via-[var(--bg)]/70 to-[var(--bg)]/10" />
+      <div className="relative z-10 max-w-screen-container layout-padding">
         <SectionHeading
           index="06"
           label="Contact"

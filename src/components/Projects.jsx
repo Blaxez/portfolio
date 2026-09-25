@@ -10,7 +10,8 @@ import { prefersReducedMotion } from "@/lib/scroll";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const CARD_WIDTH = "w-[84vw] sm:w-[58vw] md:w-[44vw] lg:w-[34vw] xl:w-[29vw]";
+// Width is capped by viewport height too, so the pinned gallery always fits on short laptop screens.
+const CARD_WIDTH = "w-[84vw] sm:w-[58vw] md:w-[min(44vw,62vh)] lg:w-[min(34vw,58vh)] xl:w-[min(29vw,56vh)]";
 
 /** Replays the beam scan across a card's image (grayscale → colour). */
 function scan(el) {
@@ -31,7 +32,7 @@ function ProjectCard({ project, index }) {
   return (
     <article className={`project-card relative flex-shrink-0 snap-start ${CARD_WIDTH}`} aria-labelledby={`project-${project.id}`}>
       <div className="group relative flex h-full flex-col" data-cursor-label="Open" onPointerEnter={(e) => e.pointerType !== "touch" && scan(scanRef.current)}>
-        <div ref={scanRef} className="scan aspect-[16/10] w-full" data-scan>
+        <div ref={scanRef} className="scan aspect-[16/10] [@media(max-height:820px)]:aspect-[16/8] w-full" data-scan>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={project.image}
@@ -67,11 +68,11 @@ function ProjectCard({ project, index }) {
             <span className="sr-only"> — view source on GitHub (opens in a new tab)</span>
           </a>
         </h3>
-        <p className="mt-3 text-[0.98rem] leading-relaxed text-[var(--muted)] line-clamp-3">
+        <p className="mt-3 text-[0.98rem] leading-relaxed text-[var(--muted)] line-clamp-3 [@media(max-height:820px)]:line-clamp-2">
           {project.description || "Source code and notes on GitHub."}
         </p>
         {project.topics?.length ? (
-          <p className="mt-3 label !normal-case !tracking-normal !text-[0.8rem] text-[var(--faint)]">{project.topics.map((t) => `#${t}`).join("  ")}</p>
+          <p className="mt-3 label !normal-case !tracking-normal !text-[0.8rem] text-[var(--faint)] [@media(max-height:820px)]:hidden">{project.topics.map((t) => `#${t}`).join("  ")}</p>
         ) : null}
         <div className="relative z-10 mt-auto flex items-center justify-between gap-3 border-t border-[var(--line)] pt-4 mt-6">
           <span className="label inline-flex items-center gap-1.5 text-[var(--fg)]" aria-hidden="true">
@@ -166,7 +167,9 @@ export default function Projects() {
     }
     const track = trackRef.current;
     const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
-    const measure = () => setHeight(distance() + window.innerHeight);
+    // A short hold once pinned lets the heading settle before the row starts to move.
+    const hold = () => Math.round(window.innerHeight * 0.22);
+    const measure = () => setHeight(distance() + window.innerHeight + hold());
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(track);
@@ -178,7 +181,7 @@ export default function Projects() {
         ease: "none",
         scrollTrigger: {
           trigger: sectionRef.current,
-          start: "top top",
+          start: () => `top+=${hold()} top`,
           end: "bottom bottom",
           scrub: 0.6,
           invalidateOnRefresh: true,
@@ -250,8 +253,8 @@ export default function Projects() {
       className="relative bg-[var(--bg)]"
       style={pinned && height ? { height } : undefined}
     >
-      <div className={pinned ? "sticky top-0 z-[31] h-[100svh] overflow-hidden flex flex-col justify-center" : "section-y"}>
-        <div className="max-w-screen-container layout-padding w-full mb-10 md:mb-12">
+      <div className={pinned ? "sticky top-0 z-[31] h-[100svh] overflow-hidden flex flex-col justify-center pt-[clamp(4.5rem,10vh,6rem)] pb-[clamp(0.75rem,2.5vh,2rem)]" : "section-y"}>
+        <div className="max-w-screen-container layout-padding w-full mb-[clamp(1.25rem,4vh,3rem)]">
           <SectionHeading
             index="04"
             label="Selected work"
@@ -270,8 +273,8 @@ export default function Projects() {
           ref={trackRef}
           className={`flex gap-8 md:gap-12 items-stretch will-change-transform ${
             pinned
-              ? "w-max px-[max(1.25rem,calc((100vw-1440px)/2+4.5rem))]"
-              : "overflow-x-auto snap-x snap-mandatory scrollbar-none px-5 md:px-14 pb-4 scroll-px-5"
+              ? "w-max px-[max(var(--pad),calc((100vw-1440px)/2+var(--pad)))]"
+              : "overflow-x-auto snap-x snap-mandatory scrollbar-none px-[var(--pad)] pb-4 scroll-px-[var(--pad)]"
           }`}
           role="list"
           aria-label="Projects"
@@ -297,7 +300,7 @@ export default function Projects() {
           )}
         </div>
 
-        <div className="max-w-screen-container layout-padding w-full mt-8 md:mt-10 flex items-center gap-6" aria-hidden="true">
+        <div className="max-w-screen-container layout-padding w-full mt-[clamp(1rem,3vh,2.5rem)] flex items-center gap-6" aria-hidden="true">
           {pinned ? (
             <>
               <div className="flex-1 h-px bg-[var(--line)] overflow-hidden">
