@@ -1,0 +1,16 @@
+{
+  "name": "portfolio-perf",
+  "private": true,
+  "type": "module",
+  "description": "Measurement harness for the exit criteria. Install separately: cd scripts/perf && npm install",
+  "scripts": {
+    "serve": "node serve.mjs",
+    "lighthouse": "node lighthouse.mjs",
+    "runtime": "node runtime.mjs",
+    "bundle": "node bundle.mjs"
+  },
+  "dependencies": {
+    "lighthouse": "^12.8.2",
+    "playwright-core": "^1.55.0"
+  }
+}
