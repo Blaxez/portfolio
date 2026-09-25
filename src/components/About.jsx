@@ -71,8 +71,8 @@ function Portrait() {
           if (!scan || prefersReducedMotion()) return;
           st = ScrollTrigger.create({
             trigger: frameRef.current,
-            start: "top 78%",
-            end: "bottom 55%",
+            start: "top 85%",
+            end: "bottom 80%",
             onUpdate: (self) => scan.setScan(self.progress),
             onRefresh: (self) => scan.setScan(self.progress),
           });
@@ -97,11 +97,11 @@ function Portrait() {
         <img
           src={getAssetPath("/assets/portrait.webp")}
           alt="Santosh Maurya"
-          width={600}
-          height={735}
+          width={640}
+          height={800}
           loading="lazy"
           decoding="async"
-          className="absolute inset-0 h-full w-full object-cover opacity-80"
+          className="absolute inset-0 h-full w-full object-cover grayscale contrast-[1.05] opacity-85"
         />
       </div>
       <figcaption className="mt-4 flex items-baseline justify-between gap-4">
